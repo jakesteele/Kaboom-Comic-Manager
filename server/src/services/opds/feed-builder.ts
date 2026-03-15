@@ -163,30 +163,7 @@ export function addAcquisitionEntry(doc: XMLBuilder, opts: AcquisitionEntryOpts)
   entry.ele(ATOM_NS, 'title').txt(opts.title);
   entry.ele(ATOM_NS, 'updated').txt(opts.updated);
 
-  // Acquisition link (download)
-  entry.ele(ATOM_NS, 'link')
-    .att('rel', REL_ACQUISITION)
-    .att('href', opts.downloadHref)
-    .att('type', opts.downloadType || CBZ_TYPE)
-    .att('title', opts.fileName);
-
-  // Thumbnail
-  if (opts.thumbnailHref) {
-    entry.ele(ATOM_NS, 'link')
-      .att('rel', REL_THUMBNAIL)
-      .att('href', opts.thumbnailHref)
-      .att('type', 'image/jpeg');
-  }
-
-  // Full-size cover
-  if (opts.coverHref) {
-    entry.ele(ATOM_NS, 'link')
-      .att('rel', REL_IMAGE)
-      .att('href', opts.coverHref)
-      .att('type', 'image/jpeg');
-  }
-
-  // Summary
+  // Summary / content (Komga always includes content before links)
   if (opts.summary) {
     entry.ele(ATOM_NS, 'content')
       .att('type', 'text')
@@ -204,12 +181,37 @@ export function addAcquisitionEntry(doc: XMLBuilder, opts: AcquisitionEntryOpts)
     entry.ele(DC_NS, 'dc:language').txt(opts.language);
   }
 
+  // --- Links: order matches Komga (thumbnail → image → acquisition → PSE) ---
+
+  // Thumbnail (small cover for browsing grid)
+  if (opts.thumbnailHref) {
+    entry.ele(ATOM_NS, 'link')
+      .att('type', 'image/jpeg')
+      .att('rel', REL_THUMBNAIL)
+      .att('href', opts.thumbnailHref);
+  }
+
+  // Full-size cover
+  if (opts.coverHref) {
+    entry.ele(ATOM_NS, 'link')
+      .att('type', 'image/jpeg')
+      .att('rel', REL_IMAGE)
+      .att('href', opts.coverHref);
+  }
+
+  // Acquisition link (download)
+  entry.ele(ATOM_NS, 'link')
+    .att('rel', REL_ACQUISITION)
+    .att('href', opts.downloadHref)
+    .att('type', opts.downloadType || CBZ_TYPE)
+    .att('title', opts.fileName);
+
   // OPDS-PSE streaming link
   if (opts.streamHref && opts.pageCount != null && opts.pageCount > 0) {
     entry.ele(ATOM_NS, 'link')
-      .att('rel', REL_PSE_STREAM)
-      .att('type', 'image/jpeg')
       .att('href', opts.streamHref)
+      .att('type', 'image/jpeg')
+      .att('rel', REL_PSE_STREAM)
       .att(PSE_NS, 'pse:count', String(opts.pageCount));
   }
 }

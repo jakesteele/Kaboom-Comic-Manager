@@ -15,11 +15,11 @@ export const REL_SEARCH = 'search';
 export const REL_SUBSECTION = 'subsection';
 export const REL_NEXT = 'next';
 export const REL_PREVIOUS = 'previous';
-export const REL_ACQUISITION = 'http://opds-spec.org/acquisition/open-access';
+export const REL_ACQUISITION = 'http://opds-spec.org/acquisition';
 export const REL_IMAGE = 'http://opds-spec.org/image';
 export const REL_THUMBNAIL = 'http://opds-spec.org/image/thumbnail';
 export const REL_SORT_NEW = 'http://opds-spec.org/sort/new';
 
 // OPDS-PSE (Page Streaming Extension)
-export const PSE_NS = 'http://vaemendis.net/opds-pse/v1.0';
+export const PSE_NS = 'http://vaemendis.net/opds-pse/ns';
 export const REL_PSE_STREAM = 'http://vaemendis.net/opds-pse/stream';
