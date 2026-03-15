@@ -16,9 +16,10 @@ RUN pnpm --filter @opds/web build
 # Stage 2: Production
 FROM node:20-alpine
 RUN apk add --no-cache vips-dev
+RUN npm install -g tsx
 WORKDIR /app
 
-# Copy workspace deps (includes tsx for running TypeScript)
+# Copy workspace deps
 COPY --from=build /app/node_modules ./node_modules/
 COPY --from=build /app/server/node_modules ./server/node_modules/
 COPY --from=build /app/shared ./shared/
@@ -39,4 +40,4 @@ ENV HOST=0.0.0.0
 
 EXPOSE 3000
 
-CMD ["node_modules/.bin/tsx", "server/src/index.ts"]
+CMD ["tsx", "server/src/index.ts"]
