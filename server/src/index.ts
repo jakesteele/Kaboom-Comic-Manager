@@ -58,12 +58,18 @@ app.get('/', async (request, reply) => {
 // Serve frontend static assets in production
 if (config.webDir && existsSync(config.webDir)) {
   const indexPath = join(config.webDir, 'index.html');
-  await app.register(fastifyStatic, {
-    root: config.webDir,
-    prefix: '/',
-    decorateReply: false,
-    wildcard: false,
-  });
+  const nuxtDir = join(config.webDir, '_nuxt');
+
+  // Serve Nuxt JS/CSS chunks from /_nuxt/ — avoids route conflict with app.get('/')
+  if (existsSync(nuxtDir)) {
+    await app.register(fastifyStatic, {
+      root: nuxtDir,
+      prefix: '/_nuxt/',
+      decorateReply: false,
+    });
+  }
+
+  // SPA fallback: serve index.html for any unmatched non-API route
   if (existsSync(indexPath)) {
     const indexHtml = readFileSync(indexPath, 'utf-8');
     app.setNotFoundHandler((request, reply) => {
