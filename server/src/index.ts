@@ -34,25 +34,25 @@ await app.register(registerOpdsRoutes, { prefix: '/opds' });
 // Health check
 app.get('/health', async () => ({ status: 'ok' }));
 
-// Root route: serve OPDS for XML clients (Panels), SPA for browsers
+// Root route: serve SPA for browsers, OPDS for XML-only clients (Panels)
 app.get('/', async (request, reply) => {
   const accept = (request.headers.accept || '').toLowerCase();
-  if (accept.includes('application/atom+xml') || accept.includes('text/xml') ||
-      accept.includes('application/xml') || !accept.includes('text/html')) {
-    const baseUrl = `${request.protocol}://${request.host}`;
-    const xml = buildRootCatalog(baseUrl);
-    return reply
-      .type('application/atom+xml;profile=opds-catalog;kind=navigation')
-      .send(xml);
-  }
-  // Browser — serve SPA
-  if (config.webDir) {
-    const indexPath = join(config.webDir, 'index.html');
-    if (existsSync(indexPath)) {
-      return reply.type('text/html').send(readFileSync(indexPath, 'utf-8'));
+  // Browsers send text/html — serve the SPA
+  if (accept.includes('text/html')) {
+    if (config.webDir) {
+      const indexPath = join(config.webDir, 'index.html');
+      if (existsSync(indexPath)) {
+        return reply.type('text/html').send(readFileSync(indexPath, 'utf-8'));
+      }
     }
+    return reply.redirect('/opds');
   }
-  return reply.redirect('/opds');
+  // OPDS clients (Panels etc) — serve the catalog
+  const baseUrl = `${request.protocol}://${request.host}`;
+  const xml = buildRootCatalog(baseUrl);
+  return reply
+    .type('application/atom+xml;profile=opds-catalog;kind=navigation')
+    .send(xml);
 });
 
 // Serve frontend static assets in production
