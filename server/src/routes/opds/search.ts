@@ -7,7 +7,7 @@ import { buildOpenSearchDescription } from '../../services/opds/search.js';
 
 export async function searchRoute(app: FastifyInstance) {
   app.get('/search', async (request, reply) => {
-    const baseUrl = `${request.protocol}://${request.hostname}`;
+    const baseUrl = `${request.protocol}://${request.host}`;
     const { q } = request.query as { q?: string };
 
     if (!q) {

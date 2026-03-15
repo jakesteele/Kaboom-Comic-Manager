@@ -6,7 +6,7 @@ import { buildSeasonFeed } from '../../services/opds/acquisition.js';
 
 export async function seasonFeed(app: FastifyInstance) {
   app.get('/season/:id', async (request, reply) => {
-    const baseUrl = `${request.protocol}://${request.hostname}`;
+    const baseUrl = `${request.protocol}://${request.host}`;
     const { id } = request.params as { id: string };
     const seasonId = parseInt(id, 10);
 

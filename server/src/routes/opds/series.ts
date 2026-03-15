@@ -9,7 +9,7 @@ const PAGE_SIZE = 20;
 export async function seriesFeed(app: FastifyInstance) {
   // Paginated list of all series
   app.get('/series', async (request, reply) => {
-    const baseUrl = `${request.protocol}://${request.hostname}`;
+    const baseUrl = `${request.protocol}://${request.host}`;
     const { page: pageParam } = request.query as { page?: string };
     const page = Math.max(1, parseInt(pageParam || '1', 10) || 1);
 
@@ -34,7 +34,7 @@ export async function seriesFeed(app: FastifyInstance) {
 
   // Detail view: seasons within a single series
   app.get('/series/:id', async (request, reply) => {
-    const baseUrl = `${request.protocol}://${request.hostname}`;
+    const baseUrl = `${request.protocol}://${request.host}`;
     const { id } = request.params as { id: string };
     const seriesId = parseInt(id, 10);
 
