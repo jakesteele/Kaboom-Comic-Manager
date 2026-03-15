@@ -112,7 +112,7 @@ function formatDate(dateStr: string | null) {
       <template #body>
         <div class="space-y-4">
           <UFormField label="Directory Path">
-            <UInput v-model="newPath" placeholder="/path/to/manga" class="font-mono" />
+            <UInput v-model="newPath" placeholder="/manga" class="font-mono" />
           </UFormField>
           <p class="text-sm text-gray-500">
             Enter the absolute path to a directory containing CBZ files.

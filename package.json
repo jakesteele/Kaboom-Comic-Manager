@@ -7,11 +7,14 @@
     "dev": "concurrently \"pnpm dev:server\" \"pnpm dev:web\"",
     "build": "pnpm --filter shared build && pnpm --filter server build && pnpm --filter web build",
     "db:generate": "pnpm --filter server db:generate",
-    "db:migrate": "pnpm --filter server db:migrate"
+    "db:migrate": "pnpm --filter server db:migrate",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
