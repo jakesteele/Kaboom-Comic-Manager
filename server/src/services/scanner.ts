@@ -144,7 +144,12 @@ async function processFile(db: Db, file: DiscoveredFile): Promise<void> {
     seasonId,
     filePath: file.filePath,
     fileName: file.fileName,
-    displayName: generateDisplayName({ ...parsed, seriesName: seriesName, subtitle: seasonName !== 'Main' ? seasonName : null }),
+    displayName: generateDisplayName({
+      ...parsed,
+      seriesName: seriesName,
+      // Only use seasonName as subtitle if it's NOT already the seasonIndicator (avoid duplication)
+      subtitle: seasonName !== 'Main' && seasonName !== parsed.seasonIndicator ? seasonName : parsed.subtitle,
+    }),
     volumeNumber: parsed.volumeNumber,
     year: parsed.year,
     scanGroup: parsed.scanGroup,
