@@ -1,12 +1,13 @@
 # Kaboom Comic Manager
 
-A lightweight, self-hosted OPDS 1.2 server for serving CBZ comic and manga files. Includes a web UI for library management and full compatibility with OPDS readers like [Panels](https://panels.app) on iPad.
+A lightweight, self-hosted OPDS 1.2 server for serving CBZ and ePub comic, manga, and book files. Includes a web UI for library management and full compatibility with OPDS readers like [Panels](https://panels.app) on iPad.
 
 ## Features
 
 - **OPDS 1.2 + PSE** — Page Streaming Extension support for reading comics directly in Panels without downloading
 - **Web UI** — Browse your library, manage series/seasons/volumes, trigger scans, and configure settings from any browser
-- **Auto-scanning** — Watch directories for new CBZ files with automatic metadata parsing
+- **CBZ + ePub** — Full support for both comic archives and ePub books, including metadata extraction and cover art
+- **Auto-scanning** — Watch directories for new files with automatic metadata parsing (ComicInfo.xml for CBZ, OPF for ePub)
 - **Smart grouping** — Suggests series groupings based on filename similarity
 - **Thumbnails** — Automatic cover extraction and thumbnail generation
 - **Search** — Full-text search across your library via OPDS and the web UI
@@ -37,7 +38,7 @@ volumes:
   kaboom-data:
 ```
 
-Replace `/path/to/your/comics` with the path to your CBZ files on the host.
+Replace `/path/to/your/comics` with the path to your CBZ/ePub files on the host.
 
 ```bash
 docker compose up -d
@@ -60,7 +61,7 @@ docker run -d \
 1. **Start the container** using one of the methods above
 2. **Open the web UI** at `http://your-server:3000`
 3. **Add a watch directory** — Go to the Library page and add the path to your comics inside the container (e.g. `/comics`)
-4. **Trigger a scan** — Click the scan button to discover and import your CBZ files
+4. **Trigger a scan** — Click the scan button to discover and import your CBZ and ePub files
 5. **Connect your reader** — In Panels (or any OPDS client), add `http://your-server:3000` as a new server
 
 ## Environment Variables
@@ -84,7 +85,9 @@ docker run -d \
 | `/opds/search?q=`            | Search volumes                 |
 | `/opds/stream/:id?page=N`    | PSE page streaming             |
 | `/opds/thumbnail/:id`        | Volume thumbnail               |
-| `/opds/download/:id`         | Download CBZ file              |
+| `/opds/new`                  | Recently added volumes         |
+| `/opds/all`                  | All volumes (paginated)        |
+| `/opds/download/:id`         | Download file (CBZ/ePub)       |
 
 ## API Endpoints
 
@@ -95,6 +98,7 @@ docker run -d \
 | `/api/library/directories/:id`        | DELETE | Remove a watch directory       |
 | `/api/library/directories/:id/scan`   | POST   | Scan a specific directory      |
 | `/api/library/scan-all`               | POST   | Scan all directories           |
+| `/api/library/reset`                  | POST   | Clear library data (keeps dirs)|
 | `/api/series`                         | GET    | List all series                |
 | `/api/series/:id`                     | GET    | Series detail with seasons     |
 | `/api/seasons/:id`                    | GET    | Season detail with volumes     |
