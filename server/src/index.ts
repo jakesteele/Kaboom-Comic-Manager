@@ -8,6 +8,7 @@ import { ensureSchema } from './db/migrate.js';
 import { getDb } from './db/connection.js';
 import { registerApiRoutes } from './routes/api/index.js';
 import { registerOpdsRoutes } from './routes/opds/index.js';
+import { buildRootCatalog } from './services/opds/navigation.js';
 import { WatcherManager } from './services/watcher.js';
 
 const app = Fastify({ logger: true });
@@ -33,7 +34,28 @@ await app.register(registerOpdsRoutes, { prefix: '/opds' });
 // Health check
 app.get('/health', async () => ({ status: 'ok' }));
 
-// Serve frontend in production
+// Root route: serve OPDS for XML clients (Panels), SPA for browsers
+app.get('/', async (request, reply) => {
+  const accept = (request.headers.accept || '').toLowerCase();
+  if (accept.includes('application/atom+xml') || accept.includes('text/xml') ||
+      accept.includes('application/xml') || !accept.includes('text/html')) {
+    const baseUrl = `${request.protocol}://${request.host}`;
+    const xml = buildRootCatalog(baseUrl);
+    return reply
+      .type('application/atom+xml;profile=opds-catalog;kind=navigation')
+      .send(xml);
+  }
+  // Browser — serve SPA
+  if (config.webDir) {
+    const indexPath = join(config.webDir, 'index.html');
+    if (existsSync(indexPath)) {
+      return reply.type('text/html').send(readFileSync(indexPath, 'utf-8'));
+    }
+  }
+  return reply.redirect('/opds');
+});
+
+// Serve frontend static assets in production
 if (config.webDir && existsSync(config.webDir)) {
   const indexPath = join(config.webDir, 'index.html');
   await app.register(fastifyStatic, {
