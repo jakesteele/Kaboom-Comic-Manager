@@ -19,13 +19,9 @@ import type { Volume, Season } from '@opds/shared';
 function volumeToEntryOpts(baseUrl: string, vol: Volume & { pageCount?: number }) {
   const updated = (vol.updatedAt instanceof Date ? vol.updatedAt : new Date(vol.updatedAt)).toISOString();
 
-  const thumbnailHref = vol.thumbnailPath
-    ? `${baseUrl}/opds/thumbnail/${vol.id}`
-    : undefined;
-
-  const coverHref = vol.thumbnailPath
-    ? `${baseUrl}/opds/cover/${vol.id}`
-    : undefined;
+  // Always include thumbnail/cover URLs — the server generates them on-the-fly if missing
+  const thumbnailHref = `${baseUrl}/opds/thumbnail/${vol.id}`;
+  const coverHref = `${baseUrl}/opds/cover/${vol.id}`;
 
   // OPDS-PSE streaming URL template
   const pageCount = vol.pageCount ?? vol.ciPageCount ?? undefined;

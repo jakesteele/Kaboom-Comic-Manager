@@ -2,6 +2,7 @@ import type { ParsedFilename } from '@opds/shared';
 import {
   EXT_REGEX,
   PAREN_GROUP_REGEX,
+  BRACKET_GROUP_REGEX,
   YEAR_SINGLE_REGEX,
   YEAR_RANGE_REGEX,
   DIGITAL_REGEX,
@@ -33,9 +34,25 @@ export function parseFilename(input: string): ParsedFilename {
   // Step 1: Remove .cbz extension
   let name = input.replace(EXT_REGEX, '').trim();
 
-  // Step 2: Extract parenthetical groups right-to-left
-  const parenGroups: string[] = [];
+  // Step 2a: Extract bracket groups [like-this] — typically scan/release groups
+  const bracketGroups: string[] = [];
   let match: RegExpExecArray | null;
+  const bracketRegex = new RegExp(BRACKET_GROUP_REGEX.source, 'g');
+
+  while ((match = bracketRegex.exec(name)) !== null) {
+    bracketGroups.push(match[1]);
+  }
+
+  // Bracket groups are almost always scan/release group tags
+  if (bracketGroups.length > 0) {
+    result.scanGroup = bracketGroups[0];
+  }
+
+  // Remove all bracket groups from the name
+  name = name.replace(/\[[^\]]*\]/g, '').trim();
+
+  // Step 2b: Extract parenthetical groups right-to-left
+  const parenGroups: string[] = [];
   const parenRegex = new RegExp(PAREN_GROUP_REGEX.source, 'g');
 
   while ((match = parenRegex.exec(name)) !== null) {
@@ -62,9 +79,11 @@ export function parseFilename(input: string): ParsedFilename {
     }
   }
 
-  // Last unclassified paren group is likely the scan group
+  // Last unclassified paren group is likely the scan group (if no bracket group found)
   if (unclassified.length > 0) {
-    result.scanGroup = unclassified[unclassified.length - 1];
+    if (!result.scanGroup) {
+      result.scanGroup = unclassified[unclassified.length - 1];
+    }
   }
 
   // Remove all parenthetical groups from the name

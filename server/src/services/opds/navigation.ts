@@ -126,6 +126,7 @@ export function buildSeriesDetailFeed(
   baseUrl: string,
   seriesData: Series,
   seasonsList: Season[],
+  seasonThumbnails?: Map<number, number>,
 ): string {
   const updated = (seriesData.updatedAt instanceof Date ? seriesData.updatedAt : new Date(seriesData.updatedAt)).toISOString();
 
@@ -140,11 +141,18 @@ export function buildSeriesDetailFeed(
   for (const season of seasonsList) {
     const seasonUpdated = (season.updatedAt instanceof Date ? season.updatedAt : new Date(season.updatedAt)).toISOString();
 
+    // Use first volume's thumbnail as season thumbnail
+    const volumeId = seasonThumbnails?.get(season.id);
+    const thumbnailHref = volumeId
+      ? `${baseUrl}/opds/thumbnail/${volumeId}`
+      : undefined;
+
     addNavigationEntry(doc, {
       id: `${baseUrl}/opds/season/${season.id}`,
       title: season.name,
       href: `${baseUrl}/opds/season/${season.id}`,
       type: ACQUISITION_TYPE,
+      thumbnailHref,
       updated: seasonUpdated,
     });
   }

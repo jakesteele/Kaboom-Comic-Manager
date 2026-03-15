@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { access } from 'node:fs/promises';
 import { eq, desc } from 'drizzle-orm';
 import { getDb } from '../../db/connection.js';
-import { watchDirectories, scanLog } from '../../db/schema/index.js';
+import { watchDirectories, scanLog, series, seasons, volumes, groupingSuggestions } from '../../db/schema/index.js';
 import { scanDirectory, scanAll } from '../../services/scanner.js';
 
 let scanningStatus: { running: boolean; directory?: string; startedAt?: Date } = { running: false };
@@ -109,5 +109,21 @@ export async function libraryRoutes(app: FastifyInstance) {
       ...scanningStatus,
       latestScan: latestLog ?? null,
     };
+  });
+
+  // POST /reset - clear all library data (volumes, seasons, series, logs, suggestions)
+  // Watch directories are preserved so you can re-scan without re-adding them.
+  app.post('/reset', async (_req, reply) => {
+    const db = getDb();
+    db.delete(volumes).run();
+    db.delete(seasons).run();
+    db.delete(series).run();
+    db.delete(scanLog).run();
+    db.delete(groupingSuggestions).run();
+
+    // Reset file counts on watch directories
+    db.update(watchDirectories).set({ fileCount: 0, lastScanAt: null }).run();
+
+    return reply.send({ message: 'Library data cleared. Watch directories preserved. Re-scan to rebuild.' });
   });
 }

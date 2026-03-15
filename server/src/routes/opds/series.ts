@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { eq, count, asc } from 'drizzle-orm';
 import { getDb } from '../../db/connection.js';
-import { series, seasons } from '../../db/schema/index.js';
+import { series, seasons, volumes } from '../../db/schema/index.js';
 import { buildSeriesListFeed, buildSeriesDetailFeed } from '../../services/opds/navigation.js';
 
 const PAGE_SIZE = 20;
@@ -54,7 +54,20 @@ export async function seriesFeed(app: FastifyInstance) {
       .orderBy(asc(seasons.sortOrder))
       .all();
 
-    const xml = buildSeriesDetailFeed(baseUrl, seriesData, seasonsList);
+    // Get first volume ID per season for thumbnails
+    const seasonThumbnails = new Map<number, number>();
+    for (const season of seasonsList) {
+      const firstVol = db.select({ id: volumes.id }).from(volumes)
+        .where(eq(volumes.seasonId, season.id))
+        .orderBy(asc(volumes.sortOrder))
+        .limit(1)
+        .get();
+      if (firstVol) {
+        seasonThumbnails.set(season.id, firstVol.id);
+      }
+    }
+
+    const xml = buildSeriesDetailFeed(baseUrl, seriesData, seasonsList, seasonThumbnails);
 
     return reply
       .type('application/atom+xml;profile=opds-catalog;kind=navigation')

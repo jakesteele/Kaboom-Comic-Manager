@@ -14,6 +14,7 @@ export interface ParsedFilename {
 // Regex patterns for filename parsing
 export const EXT_REGEX = /\.cbz$/i;
 export const PAREN_GROUP_REGEX = /\(([^)]+)\)/g;
+export const BRACKET_GROUP_REGEX = /\[([^\]]+)\]/g;
 export const YEAR_SINGLE_REGEX = /^(\d{4})$/;
 export const YEAR_RANGE_REGEX = /^(\d{4})\s*[-–]\s*(\d{4})$/;
 export const DIGITAL_REGEX = /^Digital$/i;

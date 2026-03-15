@@ -186,11 +186,12 @@ describe('parseFilename — unusual characters and punctuation', () => {
     expect(r.volumeNumber).toBe(2);
   });
 
-  it('handles brackets (not parens) in filename — brackets stay in name', () => {
+  it('handles brackets in filename — brackets stripped as scan/release groups', () => {
     const r = parse('Naruto v01 [Digital] [danke].cbz');
-    // Only parenthetical groups () are stripped; brackets [] are left as-is
-    expect(r.seriesName).toBe('Naruto [Digital] [danke]');
+    // Bracket groups are stripped and first one becomes scanGroup
+    expect(r.seriesName).toBe('Naruto');
     expect(r.volumeNumber).toBe(1);
+    expect(r.scanGroup).toBe('Digital');
   });
 
   it('handles underscores instead of spaces — volume not extracted', () => {
