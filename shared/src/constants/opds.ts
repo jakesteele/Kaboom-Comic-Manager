@@ -21,5 +21,5 @@ export const REL_THUMBNAIL = 'http://opds-spec.org/image/thumbnail';
 export const REL_SORT_NEW = 'http://opds-spec.org/sort/new';
 
 // OPDS-PSE (Page Streaming Extension)
-export const PSE_NS = 'http://vaemendis.net/opds-pse/ns';
+export const PSE_NS = 'http://vaemendis.net/opds-pse/v1.0';
 export const REL_PSE_STREAM = 'http://vaemendis.net/opds-pse/stream';

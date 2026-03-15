@@ -210,7 +210,7 @@ export function addAcquisitionEntry(doc: XMLBuilder, opts: AcquisitionEntryOpts)
       .att('rel', REL_PSE_STREAM)
       .att('type', 'image/jpeg')
       .att('href', opts.streamHref)
-      .att('pse:count', String(opts.pageCount));
+      .att(PSE_NS, 'pse:count', String(opts.pageCount));
   }
 }
 
