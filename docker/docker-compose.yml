@@ -1,0 +1,15 @@
+services:
+  kaboom:
+    image: ghcr.io/jakesteele/kaboom-comic-manager:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - kaboom-data:/data
+      - /tank/media/torrents/comics:/manga:ro
+    environment:
+      - DATA_DIR=/data
+      - PORT=3000
+    restart: unless-stopped
+
+volumes:
+  kaboom-data:
