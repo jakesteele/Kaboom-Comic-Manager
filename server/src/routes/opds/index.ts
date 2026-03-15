@@ -6,6 +6,8 @@ import { downloadRoute } from './download.js';
 import { thumbnailRoute } from './thumbnail.js';
 import { searchRoute } from './search.js';
 import { streamRoute } from './stream.js';
+import { newVolumesFeed } from './new.js';
+import { allVolumesFeed } from './all.js';
 
 export async function registerOpdsRoutes(app: FastifyInstance) {
   await app.register(rootCatalog);
@@ -15,4 +17,6 @@ export async function registerOpdsRoutes(app: FastifyInstance) {
   await app.register(thumbnailRoute);
   await app.register(searchRoute);
   await app.register(streamRoute);
+  await app.register(newVolumesFeed);
+  await app.register(allVolumesFeed);
 }

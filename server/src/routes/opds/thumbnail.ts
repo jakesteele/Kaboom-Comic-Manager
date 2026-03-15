@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { existsSync, createReadStream, statSync } from 'node:fs';
 import { getDb } from '../../db/connection.js';
-import { volumes } from '../../db/schema/index.js';
+import { volumes, series } from '../../db/schema/index.js';
 import { generateThumbnail, generateCover } from '../../services/thumbnail.js';
 
 export async function thumbnailRoute(app: FastifyInstance) {
@@ -79,6 +79,36 @@ export async function thumbnailRoute(app: FastifyInstance) {
     });
 
     const stream = createReadStream(coverPath);
+    stream.pipe(reply.raw);
+
+    return reply;
+  });
+
+  // Serve series thumbnail (uses the series' stored thumbnail path)
+  app.get('/thumbnail/series/:seriesId', async (request, reply) => {
+    const { seriesId: seriesIdParam } = request.params as { seriesId: string };
+    const seriesId = parseInt(seriesIdParam, 10);
+
+    if (isNaN(seriesId)) {
+      return reply.status(400).send({ error: 'Invalid series ID' });
+    }
+
+    const db = getDb();
+    const seriesData = db.select().from(series).where(eq(series.id, seriesId)).get();
+
+    if (!seriesData || !seriesData.thumbnailPath || !existsSync(seriesData.thumbnailPath)) {
+      return reply.status(404).send({ error: 'Thumbnail not available' });
+    }
+
+    const stat = statSync(seriesData.thumbnailPath);
+
+    reply.raw.writeHead(200, {
+      'Content-Type': 'image/jpeg',
+      'Content-Length': stat.size,
+      'Cache-Control': 'public, max-age=86400',
+    });
+
+    const stream = createReadStream(seriesData.thumbnailPath);
     stream.pipe(reply.raw);
 
     return reply;

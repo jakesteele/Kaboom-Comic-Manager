@@ -20,11 +20,11 @@ function volumeToEntryOpts(baseUrl: string, vol: Volume & { pageCount?: number }
   const updated = (vol.updatedAt instanceof Date ? vol.updatedAt : new Date(vol.updatedAt)).toISOString();
 
   const thumbnailHref = vol.thumbnailPath
-    ? `${baseUrl}/opds/thumbnail/volume/${vol.id}`
+    ? `${baseUrl}/opds/thumbnail/${vol.id}`
     : undefined;
 
   const coverHref = vol.thumbnailPath
-    ? `${baseUrl}/opds/thumbnail/volume/${vol.id}?size=full`
+    ? `${baseUrl}/opds/cover/${vol.id}`
     : undefined;
 
   // OPDS-PSE streaming URL template
