@@ -1,5 +1,7 @@
 import {
   ACQUISITION_TYPE,
+  CBZ_TYPE,
+  EPUB_TYPE,
 } from '@opds/shared';
 import {
   createFeedDocument,
@@ -23,8 +25,12 @@ function volumeToEntryOpts(baseUrl: string, vol: Volume & { pageCount?: number }
   const thumbnailHref = `${baseUrl}/opds/thumbnail/${vol.id}`;
   const coverHref = `${baseUrl}/opds/cover/${vol.id}`;
 
-  // OPDS-PSE streaming URL template
-  const pageCount = vol.pageCount ?? vol.ciPageCount ?? undefined;
+  // Determine download MIME type from file extension
+  const isEpub = /\.epub$/i.test(vol.fileName);
+  const downloadType = isEpub ? EPUB_TYPE : CBZ_TYPE;
+
+  // OPDS-PSE streaming URL template (CBZ only — ePub pages are text, not images)
+  const pageCount = !isEpub ? (vol.pageCount ?? vol.ciPageCount ?? undefined) : undefined;
   const streamHref = pageCount && pageCount > 0
     ? `${baseUrl}/opds/stream/${vol.id}?page={pageNumber}&width={maxWidth}`
     : undefined;
@@ -37,6 +43,7 @@ function volumeToEntryOpts(baseUrl: string, vol: Volume & { pageCount?: number }
     thumbnailHref,
     coverHref,
     downloadHref: `${baseUrl}/opds/download/${vol.id}`,
+    downloadType,
     summary: vol.ciSummary ?? undefined,
     author: vol.ciWriter ?? undefined,
     language: vol.ciLanguage ?? undefined,

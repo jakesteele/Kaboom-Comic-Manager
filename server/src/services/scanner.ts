@@ -7,10 +7,12 @@ import { parseFilename, generateDisplayName } from './parser.js';
 import { normalizeName } from '../utils/normalize.js';
 import { generateThumbnail } from './thumbnail.js';
 import { parseComicInfo } from './cbz.js';
+import { parseEpubMetadata } from './epub.js';
 import { getPageCount } from './page-stream.js';
 import { checkGroupingSuggestions } from './grouper.js';
+import { extname } from 'node:path';
 
-const CBZ_REGEX = /\.cbz$/i;
+const SUPPORTED_REGEX = /\.(cbz|epub)$/i;
 
 interface DiscoveredFile {
   filePath: string;
@@ -20,9 +22,9 @@ interface DiscoveredFile {
 }
 
 /**
- * Recursively discover all CBZ files in a directory.
+ * Recursively discover all supported files (CBZ, ePub) in a directory.
  */
-async function discoverCbzFiles(dirPath: string, rootPath: string): Promise<DiscoveredFile[]> {
+async function discoverFiles(dirPath: string, rootPath: string): Promise<DiscoveredFile[]> {
   const files: DiscoveredFile[] = [];
 
   try {
@@ -32,9 +34,9 @@ async function discoverCbzFiles(dirPath: string, rootPath: string): Promise<Disc
       const fullPath = join(dirPath, entry.name);
 
       if (entry.isDirectory()) {
-        const subFiles = await discoverCbzFiles(fullPath, rootPath);
+        const subFiles = await discoverFiles(fullPath, rootPath);
         files.push(...subFiles);
-      } else if (entry.isFile() && CBZ_REGEX.test(entry.name)) {
+      } else if (entry.isFile() && SUPPORTED_REGEX.test(entry.name)) {
         const fileStat = await stat(fullPath);
         const parentFolder = dirPath === rootPath ? null : basename(dirPath);
         files.push({
@@ -115,7 +117,8 @@ async function processFile(db: Db, file: DiscoveredFile): Promise<void> {
   if (folderParsed?.seriesName) {
     seriesName = folderParsed.seriesName;
   } else {
-    seriesName = parsed.seriesName || basename(file.filePath, '.cbz');
+    const ext = extname(file.filePath);
+    seriesName = parsed.seriesName || basename(file.filePath, ext);
   }
 
   // Determine season name
@@ -170,15 +173,23 @@ async function processFile(db: Db, file: DiscoveredFile): Promise<void> {
     }
   }).catch(err => console.error('Thumbnail generation failed:', err));
 
-  // Count pages for OPDS-PSE streaming
-  getPageCount(file.filePath).then(count => {
-    if (count > 0) {
-      db.update(volumes).set({ pageCount: count }).where(eq(volumes.id, vol.id)).run();
-    }
-  }).catch(err => console.error('Page count failed:', err));
+  const isEpub = /\.epub$/i.test(file.fileName);
 
-  // Parse ComicInfo.xml in background
-  parseComicInfo(file.filePath).then(ci => {
+  // Count pages for OPDS-PSE streaming (CBZ only — ePub pages are text, not images)
+  if (!isEpub) {
+    getPageCount(file.filePath).then(count => {
+      if (count > 0) {
+        db.update(volumes).set({ pageCount: count }).where(eq(volumes.id, vol.id)).run();
+      }
+    }).catch(err => console.error('Page count failed:', err));
+  }
+
+  // Parse metadata in background (ComicInfo.xml for CBZ, OPF for ePub)
+  const metadataPromise = isEpub
+    ? parseEpubMetadata(file.filePath)
+    : parseComicInfo(file.filePath);
+
+  metadataPromise.then(ci => {
     if (ci) {
       db.update(volumes).set({
         comicInfoParsed: true,
@@ -194,7 +205,7 @@ async function processFile(db: Db, file: DiscoveredFile): Promise<void> {
         ciGenre: ci.genre ?? null,
       }).where(eq(volumes.id, vol.id)).run();
     }
-  }).catch(err => console.error('ComicInfo parse failed:', err));
+  }).catch(err => console.error('Metadata parse failed:', err));
 }
 
 /**
@@ -213,7 +224,7 @@ export async function scanDirectory(db: Db, watchDirId: number): Promise<void> {
 
   try {
     // Discover files
-    const files = await discoverCbzFiles(watchDir.path, watchDir.path);
+    const files = await discoverFiles(watchDir.path, watchDir.path);
 
     // Get existing file paths in DB
     const existingVolumes = db.select({ filePath: volumes.filePath }).from(volumes).all();

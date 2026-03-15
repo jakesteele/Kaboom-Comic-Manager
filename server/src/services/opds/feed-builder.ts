@@ -9,6 +9,7 @@ import {
   NAVIGATION_TYPE,
   ACQUISITION_TYPE,
   CBZ_TYPE,
+  EPUB_TYPE,
   OPENSEARCH_TYPE,
   REL_SELF,
   REL_START,
@@ -51,6 +52,7 @@ export interface AcquisitionEntryOpts {
   thumbnailHref?: string;
   coverHref?: string;
   downloadHref: string;
+  downloadType?: string; // MIME type for download (defaults to CBZ_TYPE)
   summary?: string;
   author?: string;
   language?: string;
@@ -165,7 +167,7 @@ export function addAcquisitionEntry(doc: XMLBuilder, opts: AcquisitionEntryOpts)
   entry.ele(ATOM_NS, 'link')
     .att('rel', REL_ACQUISITION)
     .att('href', opts.downloadHref)
-    .att('type', CBZ_TYPE)
+    .att('type', opts.downloadType || CBZ_TYPE)
     .att('title', opts.fileName);
 
   // Thumbnail

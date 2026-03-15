@@ -3,9 +3,20 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { config } from '../config.js';
 import { extractCoverImage } from './cbz.js';
+import { extractEpubCover } from './epub.js';
 
 /**
- * Extract and cache a thumbnail from a CBZ file.
+ * Extract cover image buffer from a file, dispatching by format.
+ */
+async function extractCover(filePath: string): Promise<Buffer | null> {
+  if (/\.epub$/i.test(filePath)) {
+    return extractEpubCover(filePath);
+  }
+  return extractCoverImage(filePath);
+}
+
+/**
+ * Extract and cache a thumbnail from a CBZ or ePub file.
  * Returns the path to the cached thumbnail, or null on failure.
  */
 export async function generateThumbnail(
@@ -24,7 +35,7 @@ export async function generateThumbnail(
       return thumbPath;
     }
 
-    const imageBuffer = await extractCoverImage(filePath);
+    const imageBuffer = await extractCover(filePath);
     if (!imageBuffer) return null;
 
     await sharp(imageBuffer)
@@ -57,7 +68,7 @@ export async function generateCover(
       return coverPath;
     }
 
-    const imageBuffer = await extractCoverImage(filePath);
+    const imageBuffer = await extractCover(filePath);
     if (!imageBuffer) return null;
 
     await sharp(imageBuffer)

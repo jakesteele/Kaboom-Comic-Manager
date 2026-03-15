@@ -6,6 +6,7 @@ export const OPENSEARCH_NS = 'http://a9.com/-/spec/opensearch/1.1/';
 export const NAVIGATION_TYPE = 'application/atom+xml;profile=opds-catalog;kind=navigation';
 export const ACQUISITION_TYPE = 'application/atom+xml;profile=opds-catalog;kind=acquisition';
 export const CBZ_TYPE = 'application/vnd.comicbook+zip';
+export const EPUB_TYPE = 'application/epub+zip';
 export const OPENSEARCH_TYPE = 'application/opensearchdescription+xml';
 
 export const REL_SELF = 'self';
