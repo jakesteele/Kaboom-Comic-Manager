@@ -1,6 +1,7 @@
 services:
   kaboom:
     image: ghcr.io/jakesteele/kaboom-comic-manager:latest
+    container_name: kaboom
     ports:
       - "3000:3000"
     volumes:
