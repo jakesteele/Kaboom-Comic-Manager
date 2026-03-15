@@ -11,7 +11,7 @@ COPY shared/ shared/
 COPY web/ web/
 COPY server/ server/
 ENV API_BASE=""
-RUN pnpm --filter @opds/web build
+RUN pnpm --filter @opds/web generate
 
 # Stage 2: Production
 FROM node:20-alpine
