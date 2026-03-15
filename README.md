@@ -1,13 +1,13 @@
 # Kaboom Comic Manager
 
-A lightweight, self-hosted OPDS 1.2 server for serving CBZ and ePub comic, manga, and book files. Includes a web UI for library management and full compatibility with OPDS readers like [Panels](https://panels.app) on iPad.
+A lightweight, self-hosted OPDS 1.2 server for serving CBZ, CBR, and ePub comic, manga, and book files. Includes a web UI for library management and full compatibility with OPDS readers like [Panels](https://panels.app) on iPad.
 
 ## Features
 
 - **OPDS 1.2 + PSE** — Page Streaming Extension support for reading comics directly in Panels without downloading
 - **Web UI** — Browse your library, manage series/seasons/volumes, trigger scans, and configure settings from any browser
-- **CBZ + ePub** — Full support for both comic archives and ePub books, including metadata extraction and cover art
-- **Auto-scanning** — Watch directories for new files with automatic metadata parsing (ComicInfo.xml for CBZ, OPF for ePub)
+- **CBZ + CBR + ePub** — Full support for ZIP and RAR comic archives and ePub books, including metadata extraction and cover art
+- **Auto-scanning** — Watch directories for new files with automatic metadata parsing (ComicInfo.xml for CBZ/CBR, OPF for ePub)
 - **Smart grouping** — Suggests series groupings based on filename similarity
 - **Thumbnails** — Automatic cover extraction and thumbnail generation
 - **Search** — Full-text search across your library via OPDS and the web UI
@@ -38,7 +38,7 @@ volumes:
   kaboom-data:
 ```
 
-Replace `/path/to/your/comics` with the path to your CBZ/ePub files on the host.
+Replace `/path/to/your/comics` with the path to your CBZ/CBR/ePub files on the host.
 
 ```bash
 docker compose up -d
@@ -61,7 +61,7 @@ docker run -d \
 1. **Start the container** using one of the methods above
 2. **Open the web UI** at `http://your-server:3000`
 3. **Add a watch directory** — Go to the Library page and add the path to your comics inside the container (e.g. `/comics`)
-4. **Trigger a scan** — Click the scan button to discover and import your CBZ and ePub files
+4. **Trigger a scan** — Click the scan button to discover and import your CBZ, CBR, and ePub files
 5. **Connect your reader** — In Panels (or any OPDS client), add `http://your-server:3000` as a new server
 
 ## Environment Variables
@@ -87,7 +87,7 @@ docker run -d \
 | `/opds/thumbnail/:id`        | Volume thumbnail               |
 | `/opds/new`                  | Recently added volumes         |
 | `/opds/all`                  | All volumes (paginated)        |
-| `/opds/download/:id`         | Download file (CBZ/ePub)       |
+| `/opds/download/:id`         | Download file (CBZ/CBR/ePub)   |
 
 ## API Endpoints
 

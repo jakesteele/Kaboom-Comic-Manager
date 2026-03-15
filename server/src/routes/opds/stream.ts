@@ -3,10 +3,12 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '../../db/connection.js';
 import { volumes } from '../../db/schema/index.js';
 import { extractPage } from '../../services/page-stream.js';
+import { extractCbrPage } from '../../services/cbr.js';
+import sharp from 'sharp';
 
 /**
  * OPDS-PSE page streaming route.
- * Serves individual page images from CBZ files on the fly.
+ * Serves individual page images from CBZ/CBR files on the fly.
  *
  * GET /opds/stream/:volumeId?page={pageNumber}&width={maxWidth}
  */
@@ -35,7 +37,27 @@ export async function streamRoute(app: FastifyInstance) {
     }
 
     try {
-      const result = await extractPage(vol.filePath, pageNumber, maxWidth);
+      const isCbr = /\.cbr$/i.test(vol.filePath);
+      let result: { buffer: Buffer; contentType: string } | null;
+
+      if (isCbr) {
+        // CBR: extract raw image then convert to JPEG
+        const rawBuffer = await extractCbrPage(vol.filePath, pageNumber);
+        if (!rawBuffer) {
+          return reply.code(404).send({ error: 'Page not found' });
+        }
+        let pipeline = sharp(rawBuffer);
+        if (maxWidth && maxWidth > 0) {
+          pipeline = pipeline.resize(maxWidth, undefined, {
+            fit: 'inside',
+            withoutEnlargement: true,
+          });
+        }
+        const output = await pipeline.jpeg({ quality: 90 }).toBuffer();
+        result = { buffer: output, contentType: 'image/jpeg' };
+      } else {
+        result = await extractPage(vol.filePath, pageNumber, maxWidth);
+      }
 
       if (!result) {
         return reply.code(404).send({ error: 'Page not found' });

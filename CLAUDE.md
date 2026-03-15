@@ -1,7 +1,7 @@
 # Kaboom Comic Manager
 
 ## Project Overview
-Kaboom is a self-hosted OPDS 1.2 server for serving CBZ comic/manga files to readers like Panels (iPad). It includes a web UI for library management built with Nuxt 3.
+Kaboom is a self-hosted OPDS 1.2 server for serving CBZ, CBR, and ePub comic/manga/book files to readers like Panels (iPad). It includes a web UI for library management built with Nuxt 3.
 
 ## Architecture
 
@@ -30,7 +30,7 @@ Fastify serves the SPA with two mechanisms:
 **Important**: Do NOT register `@fastify/static` with `prefix: '/'` — it conflicts with the explicit root route handler.
 
 ## Tech Stack
-- **Backend**: Fastify 5, Drizzle ORM, better-sqlite3, sharp (thumbnails), yauzl (CBZ/ZIP)
+- **Backend**: Fastify 5, Drizzle ORM, better-sqlite3, sharp (thumbnails), yauzl (CBZ/ZIP), node-unrar-js (CBR/RAR)
 - **Frontend**: Nuxt 3, Vue 3, @nuxt/ui, Tailwind CSS 4, vuedraggable
 - **Database**: SQLite at `DATA_DIR/opds.db`
 - **Build**: pnpm workspaces, tsx (dev + prod), vitest (tests)
@@ -52,7 +52,7 @@ pnpm --filter @opds/web generate  # Build static SPA for Docker
 - All queries use Drizzle ORM's query builder (`.select().from().where().get()/.all()/.run()`)
 
 ## File Parsing
-- `server/src/services/parser.ts` — Parses CBZ filenames into structured metadata (series, volume, year, etc.)
+- `server/src/services/parser.ts` — Parses CBZ/CBR/ePub filenames into structured metadata (series, volume, year, etc.)
 - Regex patterns defined in `shared/src/constants/parsing.ts`
 - Edge cases: numeric-only filenames (e.g., "1.cbz") stay as seriesName; underscored names don't extract volumes due to `\b` word boundary limitations. These can be fixed in the UI.
 - Test coverage: `server/src/services/parser.test.ts` (80+ test cases)
@@ -85,5 +85,4 @@ pnpm --filter @opds/web generate  # Build static SPA for Docker
 ## Known Limitations / TODOs
 - Numeric-only filenames (e.g., "1.cbz", "23.cbz") can't distinguish series name from volume number — stays as seriesName
 - Underscore-separated filenames (e.g., "My_Hero_Academia_v05.cbz") don't extract volume numbers due to word boundary regex
-- Square bracket metadata (e.g., `[Digital]`) is not stripped like parenthetical groups
 - These are all fixable in the web UI after scan

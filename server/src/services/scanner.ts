@@ -7,12 +7,13 @@ import { parseFilename, generateDisplayName } from './parser.js';
 import { normalizeName } from '../utils/normalize.js';
 import { generateThumbnail } from './thumbnail.js';
 import { parseComicInfo } from './cbz.js';
+import { parseCbrComicInfo, getCbrPageCount } from './cbr.js';
 import { parseEpubMetadata } from './epub.js';
 import { getPageCount } from './page-stream.js';
 import { checkGroupingSuggestions } from './grouper.js';
 import { extname } from 'node:path';
 
-const SUPPORTED_REGEX = /\.(cbz|epub)$/i;
+const SUPPORTED_REGEX = /\.(cbz|cbr|epub)$/i;
 
 interface DiscoveredFile {
   filePath: string;
@@ -174,20 +175,26 @@ async function processFile(db: Db, file: DiscoveredFile): Promise<void> {
   }).catch(err => console.error('Thumbnail generation failed:', err));
 
   const isEpub = /\.epub$/i.test(file.fileName);
+  const isCbr = /\.cbr$/i.test(file.fileName);
 
-  // Count pages for OPDS-PSE streaming (CBZ only — ePub pages are text, not images)
+  // Count pages for OPDS-PSE streaming (CBZ/CBR only — ePub pages are text, not images)
   if (!isEpub) {
-    getPageCount(file.filePath).then(count => {
+    const pageCountPromise = isCbr
+      ? getCbrPageCount(file.filePath)
+      : getPageCount(file.filePath);
+    pageCountPromise.then(count => {
       if (count > 0) {
         db.update(volumes).set({ pageCount: count }).where(eq(volumes.id, vol.id)).run();
       }
     }).catch(err => console.error('Page count failed:', err));
   }
 
-  // Parse metadata in background (ComicInfo.xml for CBZ, OPF for ePub)
+  // Parse metadata in background (ComicInfo.xml for CBZ/CBR, OPF for ePub)
   const metadataPromise = isEpub
     ? parseEpubMetadata(file.filePath)
-    : parseComicInfo(file.filePath);
+    : isCbr
+      ? parseCbrComicInfo(file.filePath)
+      : parseComicInfo(file.filePath);
 
   metadataPromise.then(ci => {
     if (ci) {

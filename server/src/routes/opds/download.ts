@@ -27,9 +27,12 @@ export async function downloadRoute(app: FastifyInstance) {
 
     const stat = statSync(volume.filePath);
     const fileName = basename(volume.filePath);
-    const contentType = /\.epub$/i.test(volume.filePath)
+    const ext = volume.filePath.toLowerCase();
+    const contentType = /\.epub$/i.test(ext)
       ? 'application/epub+zip'
-      : 'application/vnd.comicbook+zip';
+      : /\.cbr$/i.test(ext)
+        ? 'application/vnd.comicbook-rar'
+        : 'application/vnd.comicbook+zip';
 
     reply.raw.writeHead(200, {
       'Content-Type': contentType,

@@ -3,15 +3,15 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { config } from '../config.js';
 import { extractCoverImage } from './cbz.js';
+import { extractCbrCoverImage } from './cbr.js';
 import { extractEpubCover } from './epub.js';
 
 /**
  * Extract cover image buffer from a file, dispatching by format.
  */
 async function extractCover(filePath: string): Promise<Buffer | null> {
-  if (/\.epub$/i.test(filePath)) {
-    return extractEpubCover(filePath);
-  }
+  if (/\.epub$/i.test(filePath)) return extractEpubCover(filePath);
+  if (/\.cbr$/i.test(filePath)) return extractCbrCoverImage(filePath);
   return extractCoverImage(filePath);
 }
 

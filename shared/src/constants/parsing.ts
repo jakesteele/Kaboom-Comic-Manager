@@ -12,7 +12,7 @@ export interface ParsedFilename {
 }
 
 // Regex patterns for filename parsing
-export const EXT_REGEX = /\.(cbz|epub)$/i;
+export const EXT_REGEX = /\.(cbz|cbr|epub)$/i;
 export const PAREN_GROUP_REGEX = /\(([^)]+)\)/g;
 export const BRACKET_GROUP_REGEX = /\[([^\]]+)\]/g;
 export const YEAR_SINGLE_REGEX = /^(\d{4})$/;

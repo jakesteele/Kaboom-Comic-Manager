@@ -1,6 +1,7 @@
 import {
   ACQUISITION_TYPE,
   CBZ_TYPE,
+  CBR_TYPE,
   EPUB_TYPE,
 } from '@opds/shared';
 import {
@@ -27,9 +28,10 @@ function volumeToEntryOpts(baseUrl: string, vol: Volume & { pageCount?: number }
 
   // Determine download MIME type from file extension
   const isEpub = /\.epub$/i.test(vol.fileName);
-  const downloadType = isEpub ? EPUB_TYPE : CBZ_TYPE;
+  const isCbr = /\.cbr$/i.test(vol.fileName);
+  const downloadType = isEpub ? EPUB_TYPE : isCbr ? CBR_TYPE : CBZ_TYPE;
 
-  // OPDS-PSE streaming URL template (CBZ only — ePub pages are text, not images)
+  // OPDS-PSE streaming URL template (CBZ/CBR only — ePub pages are text, not images)
   const pageCount = !isEpub ? (vol.pageCount ?? vol.ciPageCount ?? undefined) : undefined;
   const streamHref = pageCount && pageCount > 0
     ? `${baseUrl}/opds/stream/${vol.id}?page={pageNumber}&width={maxWidth}`
