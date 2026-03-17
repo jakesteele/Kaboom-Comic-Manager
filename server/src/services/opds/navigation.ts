@@ -19,7 +19,7 @@ import type { Series, Season } from '@opds/shared';
  * Provides top-level links to browse series, view newest additions, and
  * browse all volumes.
  */
-export function buildRootCatalog(baseUrl: string): string {
+export function buildRootCatalog(baseUrl: string, hasTags = false): string {
   const now = new Date().toISOString();
   const doc = createFeedDocument({
     id: `${baseUrl}/opds`,
@@ -37,6 +37,17 @@ export function buildRootCatalog(baseUrl: string): string {
     content: 'Browse comic series alphabetically',
     updated: now,
   });
+
+  if (hasTags) {
+    addNavigationEntry(doc, {
+      id: `${baseUrl}/opds/tags`,
+      title: 'By Tags',
+      href: `${baseUrl}/opds/tags`,
+      type: NAVIGATION_TYPE,
+      content: 'Browse series by tag',
+      updated: now,
+    });
+  }
 
   addNavigationEntry(doc, {
     id: `${baseUrl}/opds/new`,

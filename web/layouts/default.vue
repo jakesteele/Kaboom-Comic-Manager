@@ -1,11 +1,17 @@
 <script setup lang="ts">
-const navigation = [
-  { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/' },
-  { label: 'Library', icon: 'i-lucide-folder-open', to: '/library' },
-  { label: 'Series', icon: 'i-lucide-book-open', to: '/series' },
-  { label: 'Grouping', icon: 'i-lucide-git-merge', to: '/grouping' },
-  { label: 'Settings', icon: 'i-lucide-settings', to: '/settings' },
+const { isAdmin } = useAuth();
+
+const allNavigation = [
+  { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/', adminOnly: false },
+  { label: 'Library', icon: 'i-lucide-folder-open', to: '/library', adminOnly: true },
+  { label: 'Series', icon: 'i-lucide-book-open', to: '/series', adminOnly: false },
+  { label: 'Grouping', icon: 'i-lucide-git-merge', to: '/grouping', adminOnly: true },
+  { label: 'Settings', icon: 'i-lucide-settings', to: '/settings', adminOnly: false },
 ];
+
+const navigation = computed(() =>
+  allNavigation.filter(item => !item.adminOnly || isAdmin.value)
+);
 </script>
 
 <template>

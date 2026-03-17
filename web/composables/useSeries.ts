@@ -1,3 +1,8 @@
+interface TagSummary {
+  id: number;
+  name: string;
+}
+
 interface SeriesSummary {
   id: number;
   name: string;
@@ -6,6 +11,7 @@ interface SeriesSummary {
   seasonCount: number;
   volumeCount: number;
   updatedAt: string;
+  tags: TagSummary[];
 }
 
 interface Volume {
@@ -92,10 +98,19 @@ export function useSeries() {
     await del(`/seasons/${seasonId}`);
   }
 
+  async function promoteSeason(seriesId: number, seasonId: number) {
+    return await post<{ newSeriesId: number; name: string }>(`/series/${seriesId}/remove-season`, { seasonId });
+  }
+
+  async function moveSeason(seriesId: number, seasonId: number, targetSeriesId: number) {
+    return await post<{ moved: boolean; targetSeriesId: number }>(`/series/${seriesId}/move-season`, { seasonId, targetSeriesId });
+  }
+
   return {
     seriesList, currentSeries, loading,
     fetchAll, fetchOne, updateSeries, mergeSeries,
     moveVolume, reorderVolumes,
     createSeason, updateSeason, deleteSeason,
+    promoteSeason, moveSeason,
   };
 }

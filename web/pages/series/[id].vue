@@ -3,11 +3,14 @@ import draggable from 'vuedraggable'
 
 const route = useRoute();
 const { baseUrl } = useApi();
+const { isAdmin } = useAuth();
 const {
   currentSeries, loading, fetchOne, updateSeries,
   createSeason, updateSeason, deleteSeason,
   moveVolume, reorderVolumes,
+  seriesList, fetchAll, promoteSeason, moveSeason,
 } = useSeries();
+const { tags: allTags, fetchTags, createTag, addTagToSeries, removeTagFromSeries, getSeriesTags } = useTags();
 
 const seriesId = computed(() => Number(route.params.id));
 
@@ -26,13 +29,23 @@ function toggleSeason(seasonId: number) {
   } else {
     collapsedSeasons.value.add(seasonId);
   }
-  // Trigger reactivity
   collapsedSeasons.value = new Set(collapsedSeasons.value);
 }
 
 // Modals
 const showAddSeason = ref(false);
 const newSeasonName = ref('');
+const showMoveSeasonModal = ref(false);
+const moveSeasonId = ref<number | null>(null);
+const moveTargetSeriesId = ref<number | null>(null);
+const moveSeriesSearch = ref('');
+
+// Tags state
+const seriesTags = ref<Array<{ id: number; name: string }>>([]);
+const showTagPicker = ref(false);
+const tagSearch = ref('');
+const tagPickerPage = ref(0);
+const TAG_PAGE_SIZE = 20;
 
 // Local editable copy of seasons with volumes for drag-and-drop
 const localSeasons = ref<Array<{
@@ -67,7 +80,47 @@ watch(() => currentSeries.value, (val) => {
 const isSingleSeason = computed(() => localSeasons.value.length === 1);
 const totalVolumes = computed(() => localSeasons.value.reduce((sum, s) => sum + s.volumes.length, 0));
 
-onMounted(() => fetchOne(seriesId.value));
+// Filtered series for move-to dropdown (exclude current)
+const filteredSeriesForMove = computed(() => {
+  const q = moveSeriesSearch.value.toLowerCase();
+  return seriesList.value
+    .filter(s => s.id !== seriesId.value)
+    .filter(s => !q || s.name.toLowerCase().includes(q));
+});
+
+// Available tags not yet assigned, filtered by search
+const filteredAvailableTags = computed(() => {
+  const assignedIds = new Set(seriesTags.value.map(t => t.id));
+  const q = tagSearch.value.toLowerCase().trim();
+  return allTags.value
+    .filter(t => !assignedIds.has(t.id))
+    .filter(t => !q || t.name.toLowerCase().includes(q));
+});
+
+const pagedAvailableTags = computed(() =>
+  filteredAvailableTags.value.slice(0, (tagPickerPage.value + 1) * TAG_PAGE_SIZE)
+);
+
+const hasMoreTags = computed(() =>
+  pagedAvailableTags.value.length < filteredAvailableTags.value.length
+);
+
+// Check if search term matches no existing tag exactly (for create option)
+const canCreateTag = computed(() => {
+  const q = tagSearch.value.trim();
+  if (!q) return false;
+  return !allTags.value.some(t => t.name.toLowerCase() === q.toLowerCase());
+});
+
+onMounted(async () => {
+  await fetchOne(seriesId.value);
+  await loadSeriesTags();
+  await fetchTags();
+});
+
+async function loadSeriesTags() {
+  seriesTags.value = await getSeriesTags(seriesId.value);
+}
 
 // Series name editing
 function startEditName() {
@@ -121,7 +174,6 @@ async function handleAddSeason() {
 async function handleDeleteSeason(seasonId: number) {
   const season = localSeasons.value.find(s => s.id === seasonId);
   if (season && season.volumes.length > 0) {
-    // Move volumes to first remaining season before deleting
     const target = localSeasons.value.find(s => s.id !== seasonId);
     if (target) {
       for (const vol of season.volumes) {
@@ -149,15 +201,75 @@ async function flattenSeries() {
   await fetchOne(seriesId.value);
 }
 
+// Promote season to its own series
+async function handlePromoteSeason(seasonId: number) {
+  if (!currentSeries.value) return;
+  const result = await promoteSeason(currentSeries.value.id, seasonId);
+  navigateTo(`/series/${result.newSeriesId}`);
+}
+
+// Move season to different series
+async function openMoveSeasonModal(seasonId: number) {
+  moveSeasonId.value = seasonId;
+  moveTargetSeriesId.value = null;
+  moveSeriesSearch.value = '';
+  await fetchAll();
+  showMoveSeasonModal.value = true;
+}
+
+async function handleMoveSeason() {
+  if (!moveSeasonId.value || !moveTargetSeriesId.value || !currentSeries.value) return;
+  await moveSeason(currentSeries.value.id, moveSeasonId.value, moveTargetSeriesId.value);
+  showMoveSeasonModal.value = false;
+  // Refresh — if source series was deleted we go back to list
+  try {
+    await fetchOne(seriesId.value);
+  } catch {
+    navigateTo('/series');
+  }
+}
+
+// Tag handlers
+async function handleAddTag(tagId: number) {
+  await addTagToSeries(tagId, seriesId.value);
+  await loadSeriesTags();
+  await fetchTags();
+  tagSearch.value = '';
+}
+
+async function handleRemoveTag(tagId: number) {
+  await removeTagFromSeries(tagId, seriesId.value);
+  await loadSeriesTags();
+  await fetchTags();
+}
+
+async function handleCreateAndAddTag() {
+  const name = tagSearch.value.trim();
+  if (!name) return;
+  try {
+    const newTag = await createTag(name);
+    await addTagToSeries(newTag.id, seriesId.value);
+    await loadSeriesTags();
+    await fetchTags();
+    tagSearch.value = '';
+  } catch (e: any) {
+    alert(e?.data?.error || 'Failed to create tag');
+  }
+}
+
+function openTagPicker() {
+  tagSearch.value = '';
+  tagPickerPage.value = 0;
+  showTagPicker.value = !showTagPicker.value;
+}
+
 // Drag and drop handler
 async function onDragChange(seasonId: number, evt: any) {
   if (evt.added) {
-    // Volume was moved INTO this season from another
     const vol = evt.added.element;
     await moveVolume(vol.id, seasonId, evt.added.newIndex);
   }
 
-  // Sync sort orders for this season
   const season = localSeasons.value.find(s => s.id === seasonId);
   if (season) {
     const updates = season.volumes.map((v, idx) => ({ id: v.id, sortOrder: idx }));
@@ -228,6 +340,76 @@ function formatSize(bytes: number) {
             {{ totalVolumes }} {{ totalVolumes === 1 ? 'volume' : 'volumes' }}
             <span v-if="!isSingleSeason"> across {{ localSeasons.length }} seasons</span>
           </p>
+
+          <!-- Tags -->
+          <div class="flex flex-wrap items-center gap-1.5 mt-2">
+            <UBadge
+              v-for="tag in seriesTags"
+              :key="tag.id"
+              variant="subtle"
+              size="sm"
+              class="gap-1"
+            >
+              {{ tag.name }}
+              <UIcon
+                v-if="isAdmin"
+                name="i-lucide-x"
+                class="w-3 h-3 cursor-pointer opacity-50 hover:opacity-100"
+                @click="handleRemoveTag(tag.id)"
+              />
+            </UBadge>
+            <UButton
+              v-if="isAdmin"
+              icon="i-lucide-tag"
+              size="xs"
+              variant="ghost"
+              @click="openTagPicker"
+              title="Add tag"
+            />
+          </div>
+
+          <!-- Tag picker dropdown -->
+          <div v-if="showTagPicker" class="mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg max-w-xs">
+            <div class="p-2 border-b border-gray-200 dark:border-gray-800">
+              <UInput
+                v-model="tagSearch"
+                placeholder="Search or create tag..."
+                icon="i-lucide-search"
+                size="sm"
+                autofocus
+                @keyup.enter="canCreateTag ? handleCreateAndAddTag() : null"
+                @keyup.escape="showTagPicker = false"
+              />
+            </div>
+            <div class="max-h-48 overflow-y-auto">
+              <div
+                v-for="tag in pagedAvailableTags"
+                :key="tag.id"
+                class="px-3 py-1.5 text-sm rounded-md mx-1 my-0.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                @click="handleAddTag(tag.id)"
+              >
+                {{ tag.name }}
+              </div>
+              <div
+                v-if="hasMoreTags"
+                class="px-3 py-1.5 text-xs text-primary-500 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-center"
+                @click="tagPickerPage++"
+              >
+                Show more...
+              </div>
+              <div v-if="filteredAvailableTags.length === 0 && !canCreateTag" class="px-3 py-3 text-xs text-gray-400 text-center">
+                No matching tags
+              </div>
+            </div>
+            <div
+              v-if="canCreateTag && isAdmin"
+              class="border-t border-gray-200 dark:border-gray-800 px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400"
+              @click="handleCreateAndAddTag"
+            >
+              <UIcon name="i-lucide-plus" class="w-4 h-4" />
+              Create "{{ tagSearch.trim() }}"
+            </div>
+          </div>
         </div>
 
         <!-- Actions -->
@@ -267,12 +449,10 @@ function formatSize(bytes: number) {
           >
             <template #item="{ element: vol }">
               <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                <!-- Drag handle -->
                 <div class="drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 p-1">
                   <UIcon name="i-lucide-grip-vertical" class="w-4 h-4" />
                 </div>
 
-                <!-- Thumbnail -->
                 <div class="w-10 h-14 bg-gray-200 dark:bg-gray-800 rounded overflow-hidden flex-shrink-0">
                   <img
                     v-if="vol.thumbnailPath"
@@ -282,7 +462,6 @@ function formatSize(bytes: number) {
                   />
                 </div>
 
-                <!-- Info -->
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium truncate">{{ vol.displayName }}</p>
                   <p class="text-xs text-gray-500 truncate">
@@ -291,7 +470,6 @@ function formatSize(bytes: number) {
                   </p>
                 </div>
 
-                <!-- Volume number badge -->
                 <UBadge v-if="vol.volumeNumber !== null" variant="subtle" size="sm">
                   Vol. {{ vol.volumeNumber }}
                 </UBadge>
@@ -309,19 +487,17 @@ function formatSize(bytes: number) {
             :key="season.id"
             class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden"
           >
-            <!-- Season header (clickable to collapse/expand) -->
+            <!-- Season header -->
             <div
               class="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-800/50 cursor-pointer select-none"
               :class="{ 'border-b border-gray-200 dark:border-gray-800': !collapsedSeasons.has(season.id) }"
               @click="toggleSeason(season.id)"
             >
-              <!-- Chevron -->
               <UIcon
                 :name="collapsedSeasons.has(season.id) ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
                 class="w-4 h-4 text-gray-400 transition-transform flex-shrink-0"
               />
 
-              <!-- Editable season name -->
               <div v-if="editingSeasonId === season.id" class="flex items-center gap-2 flex-1" @click.stop>
                 <UInput
                   v-model="editSeasonName"
@@ -343,16 +519,34 @@ function formatSize(bytes: number) {
               </h3>
 
               <UBadge variant="subtle" size="sm">{{ season.volumes.length }} vols</UBadge>
-              <UButton
-                icon="i-lucide-trash-2"
-                size="xs"
-                variant="ghost"
-                color="error"
-                @click.stop="handleDeleteSeason(season.id)"
-              />
+
+              <!-- Season actions -->
+              <div class="flex items-center gap-1" @click.stop>
+                <UButton
+                  icon="i-lucide-arrow-up-right"
+                  size="xs"
+                  variant="ghost"
+                  title="Promote to its own series"
+                  @click="handlePromoteSeason(season.id)"
+                />
+                <UButton
+                  icon="i-lucide-move"
+                  size="xs"
+                  variant="ghost"
+                  title="Move to another series"
+                  @click="openMoveSeasonModal(season.id)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  size="xs"
+                  variant="ghost"
+                  color="error"
+                  @click="handleDeleteSeason(season.id)"
+                />
+              </div>
             </div>
 
-            <!-- Volumes (collapsible, draggable, shared group for cross-season moves) -->
+            <!-- Volumes -->
             <div v-show="!collapsedSeasons.has(season.id)">
               <draggable
                 v-model="season.volumes"
@@ -390,10 +584,9 @@ function formatSize(bytes: number) {
                       Vol. {{ vol.volumeNumber }}
                     </UBadge>
                   </div>
-              </template>
-            </draggable>
+                </template>
+              </draggable>
 
-              <!-- Empty state -->
               <div v-if="season.volumes.length === 0" class="text-center py-8 text-gray-400 text-sm">
                 Drag volumes here or delete this empty season
               </div>
@@ -420,6 +613,43 @@ function formatSize(bytes: number) {
           <div class="flex justify-end gap-2">
             <UButton variant="ghost" @click="showAddSeason = false">Cancel</UButton>
             <UButton @click="handleAddSeason" :disabled="!newSeasonName.trim()">Create</UButton>
+          </div>
+        </template>
+      </UModal>
+
+      <!-- Move Season Modal -->
+      <UModal v-model:open="showMoveSeasonModal">
+        <template #header>
+          <h3 class="font-semibold">Move Season to Another Series</h3>
+        </template>
+        <template #body>
+          <div class="space-y-4">
+            <UInput
+              v-model="moveSeriesSearch"
+              placeholder="Search series..."
+              icon="i-lucide-search"
+            />
+            <div class="max-h-64 overflow-y-auto space-y-1">
+              <div
+                v-for="s in filteredSeriesForMove"
+                :key="s.id"
+                class="px-3 py-2 rounded-lg cursor-pointer text-sm flex items-center justify-between"
+                :class="moveTargetSeriesId === s.id ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary' : 'hover:bg-gray-100 dark:hover:bg-gray-800'"
+                @click="moveTargetSeriesId = s.id"
+              >
+                <span>{{ s.name }}</span>
+                <span class="text-xs text-gray-400">{{ s.volumeCount }} vols</span>
+              </div>
+              <div v-if="filteredSeriesForMove.length === 0" class="text-center py-4 text-gray-400 text-sm">
+                No matching series found
+              </div>
+            </div>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton variant="ghost" @click="showMoveSeasonModal = false">Cancel</UButton>
+            <UButton @click="handleMoveSeason" :disabled="!moveTargetSeriesId">Move</UButton>
           </div>
         </template>
       </UModal>

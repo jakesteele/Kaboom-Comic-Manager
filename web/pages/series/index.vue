@@ -47,7 +47,7 @@ function thumbnailUrl(s: { id: number; thumbnailPath: string | null }) {
     <!-- Filters -->
     <div class="flex items-center gap-4">
       <UInput v-model="search" placeholder="Search series..." icon="i-lucide-search" class="flex-1 max-w-sm" />
-      <USelect v-model="sortBy" :items="[
+      <USelect v-model="sortBy" class="min-w-[180px]" :items="[
         { label: 'Name', value: 'name' },
         { label: 'Recently Updated', value: 'updated' },
         { label: 'Volume Count', value: 'volumes' },
@@ -86,6 +86,11 @@ function thumbnailUrl(s: { id: number; thumbnailPath: string | null }) {
               {{ s.seasonCount }} {{ s.seasonCount === 1 ? 'season' : 'seasons' }},
               {{ s.volumeCount }} {{ s.volumeCount === 1 ? 'vol' : 'vols' }}
             </p>
+            <div v-if="s.tags?.length" class="flex flex-wrap gap-1 mt-1">
+              <UBadge v-for="tag in s.tags" :key="tag.id" size="xs" variant="subtle" color="neutral">
+                {{ tag.name }}
+              </UBadge>
+            </div>
           </div>
         </UCard>
       </NuxtLink>

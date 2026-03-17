@@ -106,10 +106,33 @@ export function ensureSchema() {
       value TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch('now') * 1000)
+    );
+
+    CREATE TABLE IF NOT EXISTS series_tags (
+      series_id INTEGER NOT NULL REFERENCES series(id) ON DELETE CASCADE,
+      tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (series_id, tag_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch('now') * 1000),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch('now') * 1000)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_volumes_file_path ON volumes(file_path);
     CREATE INDEX IF NOT EXISTS idx_volumes_season_id ON volumes(season_id);
     CREATE INDEX IF NOT EXISTS idx_seasons_series_id ON seasons(series_id);
     CREATE INDEX IF NOT EXISTS idx_grouping_status ON grouping_suggestions(status);
+    CREATE INDEX IF NOT EXISTS idx_series_tags_tag_id ON series_tags(tag_id);
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   `);
 
   sqlite.close();

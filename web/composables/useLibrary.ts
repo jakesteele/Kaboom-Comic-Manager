@@ -21,9 +21,10 @@ export function useLibrary() {
     }
   }
 
-  async function addDirectory(path: string) {
-    await post('/library/directories', { path });
+  async function addDirectory(path: string): Promise<WatchDirectory> {
+    const dir = await post<WatchDirectory>('/library/directories', { path });
     await fetchDirectories();
+    return dir;
   }
 
   async function removeDirectory(id: number) {

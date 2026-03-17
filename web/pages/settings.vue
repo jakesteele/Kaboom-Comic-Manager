@@ -1,64 +1,54 @@
 <script setup lang="ts">
-const serverHost = ref('');
-const serverPort = ref('');
-const opdsUrl = ref('');
-const copied = ref(false);
+const { user, isAdmin, logout } = useAuth();
+const route = useRoute();
 
-onMounted(() => {
-  const loc = window.location;
-  serverHost.value = loc.hostname;
-  serverPort.value = loc.port || (loc.protocol === 'https:' ? '443' : '80');
-  opdsUrl.value = `${loc.protocol}//${loc.hostname}${loc.port ? ':' + loc.port : ''}/opds`;
+const navItems = computed(() => {
+  const items = [
+    { label: 'General', to: '/settings', icon: 'i-lucide-settings' },
+    { label: 'Tags', to: '/settings/tags', icon: 'i-lucide-tag' },
+  ];
+  if (isAdmin.value) {
+    items.push({ label: 'Users', to: '/settings/users', icon: 'i-lucide-users' });
+  }
+  return items;
 });
 
-function copyUrl() {
-  navigator.clipboard.writeText(opdsUrl.value);
-  copied.value = true;
-  setTimeout(() => { copied.value = false; }, 2000);
+function isActive(to: string) {
+  if (to === '/settings') return route.path === '/settings';
+  return route.path.startsWith(to);
 }
 </script>
 
 <template>
   <div class="space-y-6 max-w-2xl">
-    <div>
-      <h2 class="text-2xl font-bold">Settings</h2>
-      <p class="text-gray-500">Server configuration and connection info</p>
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-2xl font-bold">Settings</h2>
+        <p class="text-gray-500">Server configuration, tags, and user management</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-sm text-gray-500">{{ user?.email }}</span>
+        <UBadge :variant="isAdmin ? 'solid' : 'subtle'" size="sm">{{ user?.role }}</UBadge>
+        <UButton icon="i-lucide-log-out" variant="ghost" size="sm" @click="logout">Logout</UButton>
+      </div>
     </div>
 
-    <!-- Connection Info -->
-    <UCard>
-      <template #header>
-        <h3 class="font-semibold">Connection Info</h3>
-      </template>
-      <div class="space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-          <UFormField label="Host">
-            <UInput :model-value="serverHost" readonly class="font-mono" />
-          </UFormField>
-          <UFormField label="Port">
-            <UInput :model-value="serverPort" readonly class="font-mono" />
-          </UFormField>
-        </div>
+    <!-- Sub-navigation -->
+    <div class="flex gap-1 border-b border-gray-200 dark:border-gray-800">
+      <NuxtLink
+        v-for="item in navItems"
+        :key="item.to"
+        :to="item.to"
+        class="flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
+        :class="isActive(item.to)
+          ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+          : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'"
+      >
+        <UIcon :name="item.icon" class="w-4 h-4" />
+        {{ item.label }}
+      </NuxtLink>
+    </div>
 
-        <UFormField label="OPDS Catalog URL">
-          <div class="flex items-center gap-2">
-            <UInput :model-value="opdsUrl" readonly class="flex-1 font-mono" />
-            <UButton
-              :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
-              :label="copied ? 'Copied' : 'Copy'"
-              variant="outline"
-              @click="copyUrl"
-            />
-          </div>
-        </UFormField>
-
-        <p class="text-sm text-gray-500">
-          Add the OPDS URL above in your reader app (e.g. Panels on iPad) under <strong>Library &gt; Connect Service &gt; OPDS</strong>.
-        </p>
-        <p class="text-xs text-gray-400">
-          For HTTPS, use a reverse proxy like Tailscale, Cloudflare Tunnel, or ngrok.
-        </p>
-      </div>
-    </UCard>
+    <NuxtPage />
   </div>
 </template>

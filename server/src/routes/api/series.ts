@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../../db/connection.js';
-import { series, seasons, volumes } from '../../db/schema/index.js';
+import { series, seasons, volumes, tags, seriesTags } from '../../db/schema/index.js';
 import { normalizeName } from '../../utils/normalize.js';
 
 export async function seriesRoutes(app: FastifyInstance) {
@@ -25,10 +25,28 @@ export async function seriesRoutes(app: FastifyInstance) {
 
     const countMap = new Map(counts.map(c => [c.seriesId, c]));
 
+    // Fetch all series-tag associations in one query to avoid N+1
+    const tagRows = db
+      .select({
+        seriesId: seriesTags.seriesId,
+        tagId: tags.id,
+        tagName: tags.name,
+      })
+      .from(seriesTags)
+      .innerJoin(tags, eq(seriesTags.tagId, tags.id))
+      .all();
+
+    const tagMap = new Map<number, { id: number; name: string }[]>();
+    for (const row of tagRows) {
+      if (!tagMap.has(row.seriesId)) tagMap.set(row.seriesId, []);
+      tagMap.get(row.seriesId)!.push({ id: row.tagId, name: row.tagName });
+    }
+
     return rows.map(row => ({
       ...row,
       seasonCount: countMap.get(row.id)?.seasonCount ?? 0,
       volumeCount: countMap.get(row.id)?.volumeCount ?? 0,
+      tags: tagMap.get(row.id) ?? [],
     }));
   });
 
@@ -137,6 +155,105 @@ export async function seriesRoutes(app: FastifyInstance) {
       });
 
       return result;
+    },
+  );
+
+  // POST /:id/remove-season - promote a season to its own series
+  app.post<{ Params: { id: string }; Body: { seasonId: number } }>(
+    '/:id/remove-season',
+    async (req, reply) => {
+      const db = getDb();
+      const sourceSeriesId = Number(req.params.id);
+      const { seasonId } = req.body;
+
+      if (!seasonId) {
+        return reply.status(400).send({ error: 'seasonId is required' });
+      }
+
+      const season = db.select().from(seasons).where(eq(seasons.id, seasonId)).get();
+      if (!season || season.seriesId !== sourceSeriesId) {
+        return reply.status(404).send({ error: 'Season not found in this series' });
+      }
+
+      const sourceSeries = db.select().from(series).where(eq(series.id, sourceSeriesId)).get();
+      if (!sourceSeries) {
+        return reply.status(404).send({ error: 'Series not found' });
+      }
+
+      // Create a new series with the season's name (or combined name if "Main")
+      const newName = season.name === 'Main' ? sourceSeries.name + ' - ' + season.name : season.name;
+      const newSeries = db
+        .insert(series)
+        .values({
+          name: newName,
+          nameNormalized: normalizeName(newName),
+          sortTitle: newName.toLowerCase(),
+        })
+        .returning()
+        .get();
+
+      // Move the season to the new series and rename to "Main"
+      db.update(seasons)
+        .set({ seriesId: newSeries.id, name: 'Main', sortOrder: 0, updatedAt: new Date() })
+        .where(eq(seasons.id, seasonId))
+        .run();
+
+      // Clean up: if the source series has no more seasons, delete it
+      const remaining = db.select().from(seasons).where(eq(seasons.seriesId, sourceSeriesId)).get();
+      if (!remaining) {
+        db.delete(series).where(eq(series.id, sourceSeriesId)).run();
+      }
+
+      return { newSeriesId: newSeries.id, name: newSeries.name };
+    },
+  );
+
+  // POST /:id/move-season - move a season to a different existing series
+  app.post<{ Params: { id: string }; Body: { seasonId: number; targetSeriesId: number } }>(
+    '/:id/move-season',
+    async (req, reply) => {
+      const db = getDb();
+      const sourceSeriesId = Number(req.params.id);
+      const { seasonId, targetSeriesId } = req.body;
+
+      if (!seasonId || !targetSeriesId) {
+        return reply.status(400).send({ error: 'seasonId and targetSeriesId are required' });
+      }
+      if (targetSeriesId === sourceSeriesId) {
+        return reply.status(400).send({ error: 'Target series must be different from source' });
+      }
+
+      const season = db.select().from(seasons).where(eq(seasons.id, seasonId)).get();
+      if (!season || season.seriesId !== sourceSeriesId) {
+        return reply.status(404).send({ error: 'Season not found in this series' });
+      }
+
+      const target = db.select().from(series).where(eq(series.id, targetSeriesId)).get();
+      if (!target) {
+        return reply.status(404).send({ error: 'Target series not found' });
+      }
+
+      // Get next sort order in target series
+      const lastSeason = db
+        .select({ max: seasons.sortOrder })
+        .from(seasons)
+        .where(eq(seasons.seriesId, targetSeriesId))
+        .get();
+      const sortOrder = (lastSeason?.max ?? -1) + 1;
+
+      // Move the season
+      db.update(seasons)
+        .set({ seriesId: targetSeriesId, sortOrder, updatedAt: new Date() })
+        .where(eq(seasons.id, seasonId))
+        .run();
+
+      // Clean up: if the source series has no more seasons, delete it
+      const remaining = db.select().from(seasons).where(eq(seasons.seriesId, sourceSeriesId)).get();
+      if (!remaining) {
+        db.delete(series).where(eq(series.id, sourceSeriesId)).run();
+      }
+
+      return { moved: true, targetSeriesId };
     },
   );
 

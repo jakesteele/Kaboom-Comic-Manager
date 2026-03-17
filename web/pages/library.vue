@@ -9,9 +9,15 @@ onMounted(fetchDirectories);
 
 async function handleAdd() {
   if (!newPath.value.trim()) return;
-  await addDirectory(newPath.value.trim());
-  newPath.value = '';
-  showAddModal.value = false;
+  try {
+    const dir = await addDirectory(newPath.value.trim());
+    newPath.value = '';
+    showAddModal.value = false;
+    // Auto-scan the newly added directory
+    handleScan(dir.id);
+  } catch (e: any) {
+    alert(e?.data?.error || 'Failed to add directory');
+  }
 }
 
 async function handleScan(id: number) {

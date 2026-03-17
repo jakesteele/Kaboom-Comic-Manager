@@ -2,9 +2,11 @@ import { relations } from 'drizzle-orm';
 import { series, seasons, volumes } from './schema/series.js';
 import { watchDirectories, scanLog } from './schema/library.js';
 import { groupingSuggestions } from './schema/grouping.js';
+import { tags, seriesTags } from './schema/tags.js';
 
 export const seriesRelations = relations(series, ({ many }) => ({
   seasons: many(seasons),
+  seriesTags: many(seriesTags),
 }));
 
 export const seasonsRelations = relations(seasons, ({ one, many }) => ({
@@ -26,4 +28,13 @@ export const scanLogRelations = relations(scanLog, ({ one }) => ({
 
 export const groupingSuggestionsRelations = relations(groupingSuggestions, ({ one }) => ({
   targetSeries: one(series, { fields: [groupingSuggestions.targetSeriesId], references: [series.id] }),
+}));
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+  seriesTags: many(seriesTags),
+}));
+
+export const seriesTagsRelations = relations(seriesTags, ({ one }) => ({
+  series: one(series, { fields: [seriesTags.seriesId], references: [series.id] }),
+  tag: one(tags, { fields: [seriesTags.tagId], references: [tags.id] }),
 }));
