@@ -66,9 +66,9 @@ function thumbnailUrl(s: { id: number; thumbnailPath: string | null }) {
         v-for="s in filteredSeries"
         :key="s.id"
         :to="`/series/${s.id}`"
-        class="group"
+        class="group h-full"
       >
-        <UCard class="overflow-hidden hover:ring-2 hover:ring-primary transition-all">
+        <UCard class="overflow-hidden hover:ring-2 hover:ring-primary transition-all h-full flex flex-col">
           <div class="aspect-[2/3] bg-gray-200 dark:bg-gray-800 relative">
             <img
               v-if="s.thumbnailPath"
@@ -80,13 +80,13 @@ function thumbnailUrl(s: { id: number; thumbnailPath: string | null }) {
               <UIcon name="i-lucide-book-open" class="w-12 h-12 text-gray-400" />
             </div>
           </div>
-          <div class="p-2">
+          <div class="p-2 flex-1 flex flex-col">
             <p class="font-medium text-sm truncate">{{ s.name }}</p>
             <p class="text-xs text-gray-500">
               {{ s.seasonCount }} {{ s.seasonCount === 1 ? 'season' : 'seasons' }},
               {{ s.volumeCount }} {{ s.volumeCount === 1 ? 'vol' : 'vols' }}
             </p>
-            <div v-if="s.tags?.length" class="flex flex-wrap gap-1 mt-1">
+            <div v-if="s.tags?.length" class="flex flex-wrap gap-1 mt-auto pt-1">
               <UBadge v-for="tag in s.tags" :key="tag.id" size="xs" variant="subtle" color="neutral">
                 {{ tag.name }}
               </UBadge>
