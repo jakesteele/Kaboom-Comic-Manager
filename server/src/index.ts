@@ -129,9 +129,33 @@ app.get('/', async (request, reply) => {
     }
     return reply.redirect('/opds');
   }
-  // OPDS clients (Panels etc) — serve the catalog
-  const baseUrl = `${request.protocol}://${request.host}`;
+
+  // OPDS clients (Panels etc) — require Basic auth if users exist
   const db = getDb();
+  const hasUsers = db.select().from(users).limit(1).get();
+  if (hasUsers) {
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+      reply.header('WWW-Authenticate', 'Basic realm="Kaboom"');
+      return reply.code(401).send({ error: 'Authentication required' });
+    }
+    const decoded = Buffer.from(authHeader.slice(6), 'base64').toString('utf-8');
+    const colonIdx = decoded.indexOf(':');
+    if (colonIdx === -1) {
+      reply.header('WWW-Authenticate', 'Basic realm="Kaboom"');
+      return reply.code(401).send({ error: 'Invalid credentials' });
+    }
+    const email = decoded.substring(0, colonIdx);
+    const password = decoded.substring(colonIdx + 1);
+    const user = db.select().from(users).where(eq(users.email, email.toLowerCase())).get();
+    if (!user || !compareSync(password, user.passwordHash)) {
+      reply.header('WWW-Authenticate', 'Basic realm="Kaboom"');
+      return reply.code(401).send({ error: 'Invalid credentials' });
+    }
+  }
+
+  // Serve the catalog
+  const baseUrl = `${request.protocol}://${request.host}`;
   const hasTagsSeries = db.select({ id: tags.id }).from(tags)
     .innerJoin(seriesTags, eq(seriesTags.tagId, tags.id)).limit(1).get();
   const xml = buildRootCatalog(baseUrl, !!hasTagsSeries);
