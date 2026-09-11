@@ -40,14 +40,15 @@ Fastify serves the SPA with two mechanisms:
 ```bash
 pnpm install                    # Install all deps
 pnpm dev                        # Run server (3000) + web (3001) concurrently
-pnpm test                       # Run vitest (118 tests)
+pnpm test                       # Run vitest (142 tests)
 pnpm test:watch                 # Run vitest in watch mode
 pnpm --filter @opds/web generate  # Build static SPA for Docker
 ```
 
 ## Database
 - Schema defined in `server/src/db/schema/`
-- Tables: watchDirectories, series, seasons, volumes, scanLog, groupingSuggestions, settings
+- Tables: watchDirectories, series, seasons, volumes, scanLog, groupingSuggestions, settings, tags, seriesTags
+- No users table and no authentication anywhere. The web UI and API are open, and OPDS ignores any Basic auth header a reader sends. `ensureSchema()` drops the legacy `users` table on boot.
 - Migrations: `server/src/db/migrate.ts` (auto-runs on boot via `ensureSchema()`)
 - All queries use Drizzle ORM's query builder (`.select().from().where().get()/.all()/.run()`)
 
@@ -56,6 +57,10 @@ pnpm --filter @opds/web generate  # Build static SPA for Docker
 - Regex patterns defined in `shared/src/constants/parsing.ts`
 - Edge cases: numeric-only filenames (e.g., "1.cbz") stay as seriesName; underscored names don't extract volumes due to `\b` word boundary limitations. These can be fixed in the UI.
 - Test coverage: `server/src/services/parser.test.ts` (80+ test cases)
+
+## Series Reorganization
+- `server/src/services/reorganize.ts` — `moveVolumesToSeries()` moves volumes between series (appends to the target's first season, creates "Main" if none, deletes emptied source seasons/series). Exposed as `POST /api/volumes/move-to-series`.
+- Season-level moves/promotes live in `server/src/routes/api/series.ts`.
 
 ## OPDS
 - OPDS 1.2 with PSE (Page Streaming Extension) for Panels app compatibility

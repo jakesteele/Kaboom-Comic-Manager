@@ -6,7 +6,6 @@ import { volumesRoutes } from './volumes.js';
 import { groupingRoutes } from './grouping.js';
 import { settingsRoutes } from './settings.js';
 import { tagsRoutes } from './tags.js';
-import { usersRoutes } from './users.js';
 
 export async function registerApiRoutes(app: FastifyInstance) {
   await app.register(libraryRoutes, { prefix: '/library' });
@@ -16,5 +15,4 @@ export async function registerApiRoutes(app: FastifyInstance) {
   await app.register(groupingRoutes, { prefix: '/grouping' });
   await app.register(settingsRoutes, { prefix: '/settings' });
   await app.register(tagsRoutes, { prefix: '/tags' });
-  await app.register(usersRoutes, { prefix: '/users' });
 }

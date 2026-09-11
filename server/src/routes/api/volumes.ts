@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { getDb } from '../../db/connection.js';
 import { seasons, volumes } from '../../db/schema/index.js';
+import { moveVolumesToSeries, ReorganizeError } from '../../services/reorganize.js';
 
 export async function volumesRoutes(app: FastifyInstance) {
   // PATCH /:id - update volume displayName
@@ -64,6 +65,33 @@ export async function volumesRoutes(app: FastifyInstance) {
 
       const updated = db.select().from(volumes).where(eq(volumes.id, id)).get();
       return updated;
+    },
+  );
+
+  // POST /move-to-series - move one or more volumes into another series
+  app.post<{ Body: { volumeIds: number[]; targetSeriesId: number; targetSeasonId?: number } }>(
+    '/move-to-series',
+    async (req, reply) => {
+      const { volumeIds, targetSeriesId, targetSeasonId } = req.body ?? {};
+
+      if (!Array.isArray(volumeIds) || volumeIds.length === 0 || !volumeIds.every(id => Number.isInteger(id))) {
+        return reply.status(400).send({ error: 'volumeIds must be a non-empty array of ids' });
+      }
+      if (!Number.isInteger(targetSeriesId)) {
+        return reply.status(400).send({ error: 'targetSeriesId is required' });
+      }
+      if (targetSeasonId !== undefined && !Number.isInteger(targetSeasonId)) {
+        return reply.status(400).send({ error: 'targetSeasonId must be an id' });
+      }
+
+      try {
+        return moveVolumesToSeries(getDb(), { volumeIds, targetSeriesId, targetSeasonId });
+      } catch (err) {
+        if (err instanceof ReorganizeError) {
+          return reply.status(err.status).send({ error: err.message });
+        }
+        throw err;
+      }
     },
   );
 
