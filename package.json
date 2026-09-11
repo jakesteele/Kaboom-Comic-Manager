@@ -1,6 +1,7 @@
 {
   "name": "kaboom",
   "private": true,
+  "packageManager": "pnpm@12.3.4",
   "scripts": {
     "dev:server": "pnpm --filter server dev",
     "dev:web": "pnpm --filter web dev",
@@ -15,14 +16,5 @@
     "concurrently": "^9.1.2",
     "typescript": "^5.7.3",
     "vitest": "^4.1.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "better-sqlite3",
-      "esbuild",
-      "sharp",
-      "vue-demi"
-    ]
   }
 }
