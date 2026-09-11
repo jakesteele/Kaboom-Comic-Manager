@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { hashSync, compareSync } from 'bcryptjs';
 import { createTestDb, type TestDb } from './test-helpers.js';
-import { tags, seriesTags, users, series, seasons } from './schema/index.js';
+import { tags, seriesTags, series, seasons } from './schema/index.js';
 
 let db: TestDb;
 
@@ -152,134 +151,6 @@ describe('Series-Tag relationships', () => {
     // Series itself should still exist
     const seriesStill = db.select().from(series).where(eq(series.id, s.id)).get();
     expect(seriesStill).toBeDefined();
-  });
-});
-
-// ─── Users CRUD ─────────────────────────────────────────────────────────
-
-describe('Users CRUD', () => {
-  it('creates a user with hashed password', () => {
-    const hash = hashSync('password123', 10);
-    const user = db.insert(users).values({
-      email: 'admin@test.com',
-      passwordHash: hash,
-      role: 'admin',
-    }).returning().get();
-
-    expect(user.id).toBeDefined();
-    expect(user.email).toBe('admin@test.com');
-    expect(user.role).toBe('admin');
-    expect(compareSync('password123', user.passwordHash)).toBe(true);
-  });
-
-  it('enforces unique emails', () => {
-    db.insert(users).values({
-      email: 'dupe@test.com',
-      passwordHash: hashSync('pass', 10),
-    }).run();
-
-    expect(() => {
-      db.insert(users).values({
-        email: 'dupe@test.com',
-        passwordHash: hashSync('pass2', 10),
-      }).run();
-    }).toThrow();
-  });
-
-  it('defaults role to user', () => {
-    const user = db.insert(users).values({
-      email: 'newuser@test.com',
-      passwordHash: hashSync('pass', 10),
-    }).returning().get();
-
-    expect(user.role).toBe('user');
-  });
-
-  it('updates user role', () => {
-    const user = db.insert(users).values({
-      email: 'promote@test.com',
-      passwordHash: hashSync('pass', 10),
-      role: 'user',
-    }).returning().get();
-
-    db.update(users).set({ role: 'admin' }).where(eq(users.id, user.id)).run();
-
-    const updated = db.select().from(users).where(eq(users.id, user.id)).get();
-    expect(updated!.role).toBe('admin');
-  });
-
-  it('updates user password', () => {
-    const user = db.insert(users).values({
-      email: 'changepw@test.com',
-      passwordHash: hashSync('oldpass', 10),
-    }).returning().get();
-
-    const newHash = hashSync('newpass', 10);
-    db.update(users).set({ passwordHash: newHash }).where(eq(users.id, user.id)).run();
-
-    const updated = db.select().from(users).where(eq(users.id, user.id)).get();
-    expect(compareSync('newpass', updated!.passwordHash)).toBe(true);
-    expect(compareSync('oldpass', updated!.passwordHash)).toBe(false);
-  });
-
-  it('deletes a user', () => {
-    const user = db.insert(users).values({
-      email: 'delete@test.com',
-      passwordHash: hashSync('pass', 10),
-    }).returning().get();
-
-    db.delete(users).where(eq(users.id, user.id)).run();
-
-    const found = db.select().from(users).where(eq(users.id, user.id)).get();
-    expect(found).toBeUndefined();
-  });
-
-  it('lists users ordered by email', () => {
-    db.insert(users).values({ email: 'charlie@test.com', passwordHash: hashSync('p', 10) }).run();
-    db.insert(users).values({ email: 'alice@test.com', passwordHash: hashSync('p', 10) }).run();
-    db.insert(users).values({ email: 'bob@test.com', passwordHash: hashSync('p', 10) }).run();
-
-    const allUsers = db.select().from(users).orderBy(users.email).all();
-    expect(allUsers.map(u => u.email)).toEqual([
-      'alice@test.com',
-      'bob@test.com',
-      'charlie@test.com',
-    ]);
-  });
-});
-
-// ─── Admin protection logic ─────────────────────────────────────────────
-
-describe('Admin protection', () => {
-  it('counts admin users correctly', () => {
-    db.insert(users).values({ email: 'admin1@test.com', passwordHash: hashSync('p', 10), role: 'admin' }).run();
-    db.insert(users).values({ email: 'admin2@test.com', passwordHash: hashSync('p', 10), role: 'admin' }).run();
-    db.insert(users).values({ email: 'user1@test.com', passwordHash: hashSync('p', 10), role: 'user' }).run();
-
-    const adminCount = db.select().from(users).where(eq(users.role, 'admin')).all().length;
-    expect(adminCount).toBe(2);
-  });
-
-  it('identifies the last admin', () => {
-    db.insert(users).values({ email: 'sole-admin@test.com', passwordHash: hashSync('p', 10), role: 'admin' }).run();
-    db.insert(users).values({ email: 'regular@test.com', passwordHash: hashSync('p', 10), role: 'user' }).run();
-
-    const adminCount = db.select().from(users).where(eq(users.role, 'admin')).all().length;
-    expect(adminCount).toBe(1);
-  });
-
-  it('allows demoting non-last admin', () => {
-    const a1 = db.insert(users).values({ email: 'admin1@test.com', passwordHash: hashSync('p', 10), role: 'admin' }).returning().get();
-    db.insert(users).values({ email: 'admin2@test.com', passwordHash: hashSync('p', 10), role: 'admin' }).run();
-
-    const adminCount = db.select().from(users).where(eq(users.role, 'admin')).all().length;
-    expect(adminCount).toBe(2);
-
-    // Safe to demote one
-    db.update(users).set({ role: 'user' }).where(eq(users.id, a1.id)).run();
-
-    const remaining = db.select().from(users).where(eq(users.role, 'admin')).all().length;
-    expect(remaining).toBe(1);
   });
 });
 

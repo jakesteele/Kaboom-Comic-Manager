@@ -1,17 +1,10 @@
 <script setup lang="ts">
-const { user, isAdmin, logout } = useAuth();
 const route = useRoute();
 
-const navItems = computed(() => {
-  const items = [
-    { label: 'General', to: '/settings', icon: 'i-lucide-settings' },
-    { label: 'Tags', to: '/settings/tags', icon: 'i-lucide-tag' },
-  ];
-  if (isAdmin.value) {
-    items.push({ label: 'Users', to: '/settings/users', icon: 'i-lucide-users' });
-  }
-  return items;
-});
+const navItems = [
+  { label: 'General', to: '/settings', icon: 'i-lucide-settings' },
+  { label: 'Tags', to: '/settings/tags', icon: 'i-lucide-tag' },
+];
 
 function isActive(to: string) {
   if (to === '/settings') return route.path === '/settings';
@@ -21,16 +14,9 @@ function isActive(to: string) {
 
 <template>
   <div class="space-y-6 max-w-2xl">
-    <div class="flex items-center justify-between">
-      <div>
-        <h2 class="text-2xl font-bold">Settings</h2>
-        <p class="text-gray-500">Server configuration, tags, and user management</p>
-      </div>
-      <div class="flex items-center gap-3">
-        <span class="text-sm text-gray-500">{{ user?.email }}</span>
-        <UBadge :variant="isAdmin ? 'solid' : 'subtle'" size="sm">{{ user?.role }}</UBadge>
-        <UButton icon="i-lucide-log-out" variant="ghost" size="sm" @click="logout">Logout</UButton>
-      </div>
+    <div>
+      <h2 class="text-2xl font-bold">Settings</h2>
+      <p class="text-gray-500">Server configuration and tags</p>
     </div>
 
     <!-- Sub-navigation -->

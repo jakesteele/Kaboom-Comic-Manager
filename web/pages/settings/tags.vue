@@ -1,5 +1,4 @@
 <script setup lang="ts">
-const { isAdmin } = useAuth();
 const { tags, loading: tagsLoading, fetchTags, createTag, renameTag, deleteTag } = useTags();
 
 const newTagName = ref('');
@@ -52,7 +51,7 @@ async function handleDeleteTag(tagId: number) {
         <p class="text-sm text-gray-500">Manage tags to organize your series. Tags with series assigned will appear in OPDS as "By Tags".</p>
 
         <!-- Add new tag -->
-        <div v-if="isAdmin" class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
           <UInput
             v-model="newTagName"
             placeholder="New tag name..."
@@ -83,10 +82,8 @@ async function handleDeleteTag(tagId: number) {
               <UIcon name="i-lucide-tag" class="w-4 h-4 text-gray-400 flex-shrink-0" />
               <span class="flex-1 text-sm">{{ tag.name }}</span>
               <UBadge variant="subtle" size="sm">{{ tag.seriesCount }} series</UBadge>
-              <template v-if="isAdmin">
-                <UButton icon="i-lucide-pencil" size="xs" variant="ghost" @click="startEditTag(tag)" />
-                <UButton icon="i-lucide-trash-2" size="xs" variant="ghost" color="error" @click="handleDeleteTag(tag.id)" />
-              </template>
+              <UButton icon="i-lucide-pencil" size="xs" variant="ghost" @click="startEditTag(tag)" />
+              <UButton icon="i-lucide-trash-2" size="xs" variant="ghost" color="error" @click="handleDeleteTag(tag.id)" />
             </template>
           </div>
         </div>

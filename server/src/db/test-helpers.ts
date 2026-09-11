@@ -52,14 +52,6 @@ const SCHEMA_SQL = `
     tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
     PRIMARY KEY (series_id, tag_id)
   );
-  CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user',
-    created_at INTEGER NOT NULL DEFAULT (unixepoch('now') * 1000),
-    updated_at INTEGER NOT NULL DEFAULT (unixepoch('now') * 1000)
-  );
   CREATE TABLE watch_directories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     path TEXT NOT NULL UNIQUE,

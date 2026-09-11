@@ -3,11 +3,10 @@ import draggable from 'vuedraggable'
 
 const route = useRoute();
 const { baseUrl } = useApi();
-const { isAdmin } = useAuth();
 const {
   currentSeries, loading, fetchOne, updateSeries,
   createSeason, updateSeason, deleteSeason,
-  moveVolume, reorderVolumes,
+  moveVolume, moveVolumesToSeries, reorderVolumes,
   seriesList, fetchAll, promoteSeason, moveSeason,
 } = useSeries();
 const { tags: allTags, fetchTags, createTag, addTagToSeries, removeTagFromSeries, getSeriesTags } = useTags();
@@ -39,6 +38,13 @@ const showMoveSeasonModal = ref(false);
 const moveSeasonId = ref<number | null>(null);
 const moveTargetSeriesId = ref<number | null>(null);
 const moveSeriesSearch = ref('');
+
+// Volume multi-select + move-to-series
+const selectedVolumeIds = ref(new Set<number>());
+const showMoveVolumesModal = ref(false);
+const moveVolumesTargetSeriesId = ref<number | null>(null);
+const moveVolumesSearch = ref('');
+const movingVolumes = ref(false);
 
 // Tags state
 const seriesTags = ref<Array<{ id: number; name: string }>>([]);
@@ -87,6 +93,15 @@ const filteredSeriesForMove = computed(() => {
     .filter(s => s.id !== seriesId.value)
     .filter(s => !q || s.name.toLowerCase().includes(q));
 });
+
+const filteredSeriesForVolumeMove = computed(() => {
+  const q = moveVolumesSearch.value.toLowerCase();
+  return seriesList.value
+    .filter(s => s.id !== seriesId.value)
+    .filter(s => !q || s.name.toLowerCase().includes(q));
+});
+
+const selectedCount = computed(() => selectedVolumeIds.value.size);
 
 // Available tags not yet assigned, filtered by search
 const filteredAvailableTags = computed(() => {
@@ -229,6 +244,59 @@ async function handleMoveSeason() {
   }
 }
 
+// Volume selection
+function toggleVolumeSelected(volumeId: number) {
+  const next = new Set(selectedVolumeIds.value);
+  if (next.has(volumeId)) next.delete(volumeId); else next.add(volumeId);
+  selectedVolumeIds.value = next;
+}
+
+function toggleSeasonSelected(seasonId: number) {
+  const season = localSeasons.value.find(s => s.id === seasonId);
+  if (!season) return;
+  const ids = season.volumes.map(v => v.id);
+  const allSelected = ids.every(id => selectedVolumeIds.value.has(id));
+  const next = new Set(selectedVolumeIds.value);
+  for (const id of ids) {
+    if (allSelected) next.delete(id); else next.add(id);
+  }
+  selectedVolumeIds.value = next;
+}
+
+function clearSelection() {
+  selectedVolumeIds.value = new Set();
+}
+
+async function openMoveVolumesModal() {
+  if (selectedCount.value === 0) return;
+  moveVolumesTargetSeriesId.value = null;
+  moveVolumesSearch.value = '';
+  await fetchAll();
+  showMoveVolumesModal.value = true;
+}
+
+async function handleMoveVolumes() {
+  if (!moveVolumesTargetSeriesId.value || selectedCount.value === 0) return;
+  movingVolumes.value = true;
+  try {
+    // Keep the on-screen order so the volumes land in the target in the same sequence.
+    const ordered = localSeasons.value.flatMap(s => s.volumes.map(v => v.id))
+      .filter(id => selectedVolumeIds.value.has(id));
+    const result = await moveVolumesToSeries(ordered, moveVolumesTargetSeriesId.value);
+    showMoveVolumesModal.value = false;
+    clearSelection();
+    if (result.sourceSeriesDeleted.includes(seriesId.value)) {
+      navigateTo(`/series/${moveVolumesTargetSeriesId.value}`);
+      return;
+    }
+    await fetchOne(seriesId.value);
+  } catch (e: any) {
+    alert(e?.data?.error || 'Failed to move volumes');
+  } finally {
+    movingVolumes.value = false;
+  }
+}
+
 // Tag handlers
 async function handleAddTag(tagId: number) {
   await addTagToSeries(tagId, seriesId.value);
@@ -352,14 +420,12 @@ function formatSize(bytes: number) {
             >
               {{ tag.name }}
               <UIcon
-                v-if="isAdmin"
                 name="i-lucide-x"
                 class="w-3 h-3 cursor-pointer opacity-50 hover:opacity-100"
                 @click="handleRemoveTag(tag.id)"
               />
             </UBadge>
             <UButton
-              v-if="isAdmin"
               icon="i-lucide-tag"
               size="xs"
               variant="ghost"
@@ -402,7 +468,7 @@ function formatSize(bytes: number) {
               </div>
             </div>
             <div
-              v-if="canCreateTag && isAdmin"
+              v-if="canCreateTag"
               class="border-t border-gray-200 dark:border-gray-800 px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400"
               @click="handleCreateAndAddTag"
             >
@@ -414,6 +480,17 @@ function formatSize(bytes: number) {
 
         <!-- Actions -->
         <div class="flex gap-2 flex-shrink-0">
+          <template v-if="selectedCount > 0">
+            <UButton
+              icon="i-lucide-folder-input"
+              size="sm"
+              title="Move the checked volumes into another series"
+              @click="openMoveVolumesModal"
+            >
+              Move {{ selectedCount }} to series
+            </UButton>
+            <UButton icon="i-lucide-x" variant="ghost" size="sm" title="Clear selection" @click="clearSelection" />
+          </template>
           <UButton
             v-if="!isSingleSeason"
             icon="i-lucide-layers"
@@ -452,6 +529,11 @@ function formatSize(bytes: number) {
                 <div class="drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 p-1">
                   <UIcon name="i-lucide-grip-vertical" class="w-4 h-4" />
                 </div>
+
+                <UCheckbox
+                  :model-value="selectedVolumeIds.has(vol.id)"
+                  @update:model-value="toggleVolumeSelected(vol.id)"
+                />
 
                 <div class="w-10 h-14 bg-gray-200 dark:bg-gray-800 rounded overflow-hidden flex-shrink-0">
                   <img
@@ -523,6 +605,13 @@ function formatSize(bytes: number) {
               <!-- Season actions -->
               <div class="flex items-center gap-1" @click.stop>
                 <UButton
+                  icon="i-lucide-check-square"
+                  size="xs"
+                  variant="ghost"
+                  title="Select or deselect every volume in this season"
+                  @click="toggleSeasonSelected(season.id)"
+                />
+                <UButton
                   icon="i-lucide-arrow-up-right"
                   size="xs"
                   variant="ghost"
@@ -562,6 +651,11 @@ function formatSize(bytes: number) {
                     <div class="drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 p-1">
                       <UIcon name="i-lucide-grip-vertical" class="w-4 h-4" />
                     </div>
+
+                    <UCheckbox
+                      :model-value="selectedVolumeIds.has(vol.id)"
+                      @update:model-value="toggleVolumeSelected(vol.id)"
+                    />
 
                     <div class="w-10 h-14 bg-gray-200 dark:bg-gray-800 rounded overflow-hidden flex-shrink-0">
                       <img
@@ -613,6 +707,46 @@ function formatSize(bytes: number) {
           <div class="flex justify-end gap-2">
             <UButton variant="ghost" @click="showAddSeason = false">Cancel</UButton>
             <UButton @click="handleAddSeason" :disabled="!newSeasonName.trim()">Create</UButton>
+          </div>
+        </template>
+      </UModal>
+
+      <!-- Move Volumes Modal -->
+      <UModal v-model:open="showMoveVolumesModal">
+        <template #header>
+          <h3 class="font-semibold">Move {{ selectedCount }} {{ selectedCount === 1 ? 'Volume' : 'Volumes' }} to Another Series</h3>
+        </template>
+        <template #body>
+          <div class="space-y-4">
+            <p class="text-sm text-gray-500">
+              Volumes are added to the end of the target series' first season. Seasons left empty here are removed.
+            </p>
+            <UInput
+              v-model="moveVolumesSearch"
+              placeholder="Search series..."
+              icon="i-lucide-search"
+            />
+            <div class="max-h-64 overflow-y-auto space-y-1">
+              <div
+                v-for="s in filteredSeriesForVolumeMove"
+                :key="s.id"
+                class="px-3 py-2 rounded-lg cursor-pointer text-sm flex items-center justify-between"
+                :class="moveVolumesTargetSeriesId === s.id ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary' : 'hover:bg-gray-100 dark:hover:bg-gray-800'"
+                @click="moveVolumesTargetSeriesId = s.id"
+              >
+                <span>{{ s.name }}</span>
+                <span class="text-xs text-gray-400">{{ s.volumeCount }} vols</span>
+              </div>
+              <div v-if="filteredSeriesForVolumeMove.length === 0" class="text-center py-4 text-gray-400 text-sm">
+                No matching series found
+              </div>
+            </div>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton variant="ghost" @click="showMoveVolumesModal = false">Cancel</UButton>
+            <UButton @click="handleMoveVolumes" :disabled="!moveVolumesTargetSeriesId" :loading="movingVolumes">Move</UButton>
           </div>
         </template>
       </UModal>

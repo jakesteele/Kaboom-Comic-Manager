@@ -81,6 +81,13 @@ export function useSeries() {
     await post(`/volumes/${volumeId}/move`, { targetSeasonId, sortOrder });
   }
 
+  async function moveVolumesToSeries(volumeIds: number[], targetSeriesId: number) {
+    return await post<{ moved: number; targetSeasonId: number; sourceSeriesDeleted: number[] }>(
+      '/volumes/move-to-series',
+      { volumeIds, targetSeriesId },
+    );
+  }
+
   async function reorderVolumes(updates: { id: number; sortOrder: number }[]) {
     await patch('/volumes/reorder', { updates });
   }
@@ -109,7 +116,7 @@ export function useSeries() {
   return {
     seriesList, currentSeries, loading,
     fetchAll, fetchOne, updateSeries, mergeSeries,
-    moveVolume, reorderVolumes,
+    moveVolume, moveVolumesToSeries, reorderVolumes,
     createSeason, updateSeason, deleteSeason,
     promoteSeason, moveSeason,
   };
