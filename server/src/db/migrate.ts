@@ -91,7 +91,7 @@ export function ensureSchema() {
       source_type TEXT NOT NULL,
       source_id INTEGER,
       source_name TEXT NOT NULL,
-      target_series_id INTEGER REFERENCES series(id),
+      target_series_id INTEGER REFERENCES series(id) ON DELETE CASCADE,
       target_series_name TEXT NOT NULL,
       similarity_score REAL NOT NULL,
       suggested_action TEXT NOT NULL,
@@ -129,5 +129,61 @@ export function ensureSchema() {
   // Auth was removed; clean up the table older installs created.
   sqlite.exec('DROP TABLE IF EXISTS users;');
 
+  cascadeGroupingSuggestions(sqlite);
+
   sqlite.close();
+}
+
+/**
+ * grouping_suggestions.target_series_id originally had no ON DELETE action, so SQLite refused to
+ * delete any series a suggestion still pointed at - including resolved ones, which are never
+ * removed. That blocked every series delete (moving volumes out of a series, merging, resetting
+ * the library). SQLite can't ALTER a foreign key, so rebuild the table when the cascade is absent.
+ */
+export function cascadeGroupingSuggestions(sqlite: Database.Database) {
+  const fks = sqlite.pragma('foreign_key_list(grouping_suggestions)') as Array<{
+    table: string;
+    from: string;
+    on_delete: string;
+  }>;
+  const seriesFk = fks.find(fk => fk.table === 'series' && fk.from === 'target_series_id');
+  if (!seriesFk || seriesFk.on_delete === 'CASCADE') return;
+
+  // PRAGMA foreign_keys is a no-op inside a transaction, so it has to be toggled around it.
+  sqlite.pragma('foreign_keys = OFF');
+  try {
+    sqlite.exec(`
+      BEGIN;
+      CREATE TABLE grouping_suggestions_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_type TEXT NOT NULL,
+        source_id INTEGER,
+        source_name TEXT NOT NULL,
+        target_series_id INTEGER REFERENCES series(id) ON DELETE CASCADE,
+        target_series_name TEXT NOT NULL,
+        similarity_score REAL NOT NULL,
+        suggested_action TEXT NOT NULL,
+        suggested_season_name TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at INTEGER NOT NULL DEFAULT (unixepoch('now') * 1000),
+        resolved_at INTEGER
+      );
+
+      -- Drop any row already orphaned, so the rebuilt table starts free of FK violations.
+      INSERT INTO grouping_suggestions_new
+        SELECT * FROM grouping_suggestions
+        WHERE target_series_id IS NULL
+           OR target_series_id IN (SELECT id FROM series);
+
+      DROP TABLE grouping_suggestions;
+      ALTER TABLE grouping_suggestions_new RENAME TO grouping_suggestions;
+      CREATE INDEX IF NOT EXISTS idx_grouping_status ON grouping_suggestions(status);
+      COMMIT;
+    `);
+  } catch (err) {
+    sqlite.exec('ROLLBACK;');
+    throw err;
+  } finally {
+    sqlite.pragma('foreign_keys = ON');
+  }
 }

@@ -77,7 +77,7 @@ const SCHEMA_SQL = `
     source_type TEXT NOT NULL,
     source_id INTEGER,
     source_name TEXT NOT NULL,
-    target_series_id INTEGER REFERENCES series(id),
+    target_series_id INTEGER REFERENCES series(id) ON DELETE CASCADE,
     target_series_name TEXT NOT NULL,
     similarity_score REAL NOT NULL,
     suggested_action TEXT NOT NULL,

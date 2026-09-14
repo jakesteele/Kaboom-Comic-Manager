@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { createTestDb, type TestDb } from '../db/test-helpers.js';
-import { series, seasons, volumes } from '../db/schema/index.js';
+import { series, seasons, volumes, groupingSuggestions } from '../db/schema/index.js';
 import { moveVolumesToSeries } from './reorganize.js';
 
 let db: TestDb;
@@ -171,5 +171,31 @@ describe('moveVolumesToSeries', () => {
     expect(result.moved).toBe(0);
     expect(volumesIn(dstSeason.id).map(v => v.id)).toEqual([v1.id, v2.id]);
     expect(db.select().from(seasons).where(eq(seasons.id, dstSeason.id)).get()).toBeDefined();
+  });
+  it('deletes an emptied source series that a resolved grouping suggestion still points at', () => {
+    const src = createSeries('Source');
+    const srcSeason = createSeason(src.id, 'Main');
+    const v1 = createVolume(srcSeason.id, 0);
+    const dst = createSeries('Target');
+    const dstSeason = createSeason(dst.id, 'Main');
+
+    // A suggestion that was already accepted/rejected keeps referencing the series it targeted.
+    db.insert(groupingSuggestions).values({
+      sourceType: 'series',
+      sourceId: dst.id,
+      sourceName: dst.name,
+      targetSeriesId: src.id,
+      targetSeriesName: src.name,
+      similarityScore: 0.9,
+      suggestedAction: 'merge_series',
+      status: 'accepted',
+    }).run();
+
+    const result = moveVolumesToSeries(db, { volumeIds: [v1.id], targetSeriesId: dst.id });
+
+    expect(result.sourceSeriesDeleted).toEqual([src.id]);
+    expect(db.select().from(series).where(eq(series.id, src.id)).get()).toBeUndefined();
+    expect(volumesIn(dstSeason.id).map(v => v.id)).toEqual([v1.id]);
+    expect(db.select().from(groupingSuggestions).all()).toEqual([]);
   });
 });

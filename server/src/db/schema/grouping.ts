@@ -6,7 +6,7 @@ export const groupingSuggestions = sqliteTable('grouping_suggestions', {
   sourceType: text('source_type').notNull(),
   sourceId: integer('source_id'),
   sourceName: text('source_name').notNull(),
-  targetSeriesId: integer('target_series_id').references(() => series.id),
+  targetSeriesId: integer('target_series_id').references(() => series.id, { onDelete: 'cascade' }),
   targetSeriesName: text('target_series_name').notNull(),
   similarityScore: real('similarity_score').notNull(),
   suggestedAction: text('suggested_action').notNull(),

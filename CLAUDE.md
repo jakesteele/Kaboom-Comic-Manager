@@ -40,7 +40,7 @@ Fastify serves the SPA with two mechanisms:
 ```bash
 pnpm install                    # Install all deps
 pnpm dev                        # Run server (3000) + web (3001) concurrently
-pnpm test                       # Run vitest (142 tests)
+pnpm test                       # Run vitest (147 tests)
 pnpm test:watch                 # Run vitest in watch mode
 pnpm --filter @opds/web generate  # Build static SPA for Docker
 ```
